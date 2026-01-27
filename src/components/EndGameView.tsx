@@ -1,5 +1,8 @@
+import { useState, useCallback } from 'react';
 import { GameState, Player } from '../types';
 import { getDrawingById } from '../data/drawings';
+import { CeremonyOrchestrator } from './ceremony';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 interface EndGameViewProps {
   gameState: GameState;
@@ -9,11 +12,46 @@ interface EndGameViewProps {
 }
 
 export const EndGameView = ({ gameState, currentPlayer, onPlayAgain, onLeave }: EndGameViewProps) => {
+  const [showCeremony, setShowCeremony] = useState(true);
+  const [ceremonyComplete, setCeremonyComplete] = useState(false);
+  const isMobile = useIsMobile();
+
   const getPlayerName = (playerId: string) => {
     return gameState.players.find(p => p.id === playerId)?.name || 'Unknown';
   };
 
-  // Calculate scores
+  // Skip ceremony on mobile or if scoring is disabled
+  const shouldShowCeremony = showCeremony &&
+    !ceremonyComplete &&
+    !isMobile &&
+    gameState.config.scoringEnabled &&
+    gameState.rounds.length > 0;
+
+  const handleCeremonyComplete = useCallback(() => {
+    setCeremonyComplete(true);
+    setShowCeremony(false);
+  }, []);
+
+  const handleSkipCeremony = useCallback(() => {
+    setCeremonyComplete(true);
+    setShowCeremony(false);
+  }, []);
+
+  // Show ceremony if applicable
+  if (shouldShowCeremony) {
+    return (
+      <div className="container" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
+        <CeremonyOrchestrator
+          gameState={gameState}
+          onCeremonyComplete={handleCeremonyComplete}
+          onSkip={handleSkipCeremony}
+          isHost={currentPlayer.isHost}
+        />
+      </div>
+    );
+  }
+
+  // Calculate scores for static leaderboard
   const playerScores: Record<string, { totalScore: number; totalVotes: number; submissions: number }> = {};
 
   gameState.players.forEach(player => {
