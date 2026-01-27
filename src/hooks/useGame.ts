@@ -20,16 +20,18 @@ export const useGame = (initialGameCode?: string) => {
       return;
     }
 
-    const session = getPlayerSession();
-
     // Subscribe to real-time updates
     unsubscribeRef.current = subscribeToGame(initialGameCode, (state) => {
-      if (state && state.lastUpdated > lastUpdateRef.current) {
+      // Get session on each callback to ensure we have the latest
+      const session = getPlayerSession();
+
+      if (state) {
+        // Always update the state from Firebase
         lastUpdateRef.current = state.lastUpdated;
         setGameState(state);
 
         // Update current player reference
-        if (session) {
+        if (session && session.gameCode === initialGameCode) {
           const player = state.players.find(p => p.id === session.playerId);
           if (player) {
             setCurrentPlayer(player);
