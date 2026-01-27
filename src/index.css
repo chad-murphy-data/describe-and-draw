@@ -837,6 +837,134 @@ h3 {
   }
 }
 
+/* ===== BATCH REVEAL STYLES ===== */
+
+.batch-reveal-container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  padding: 1rem;
+}
+
+.batch-reveal-original {
+  text-align: center;
+  max-width: 250px;
+}
+
+.batch-reveal-original h4 {
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.batch-reveal-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  justify-content: center;
+  width: 100%;
+  max-width: 900px;
+}
+
+.batch-reveal-card {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 1rem;
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 2px solid var(--border);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.batch-reveal-card.high-score {
+  border-color: var(--success);
+  box-shadow: 0 0 20px rgba(74, 222, 128, 0.3);
+}
+
+.batch-reveal-header {
+  width: 100%;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.batch-reveal-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.batch-reveal-image {
+  width: 100%;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.batch-reveal-image img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  display: block;
+}
+
+.batch-reveal-score-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.batch-reveal-score-container .similarity-score-container {
+  padding: 0.75rem 1.5rem;
+  background: var(--bg-tertiary);
+}
+
+.batch-reveal-score-container .similarity-score-value {
+  font-size: 2rem;
+}
+
+.batch-reveal-score-container .similarity-score-label {
+  font-size: 0.7rem;
+}
+
+/* Mobile responsive for batch reveal */
+@media (max-width: 768px) {
+  .batch-reveal-grid {
+    gap: 1rem;
+  }
+
+  .batch-reveal-card {
+    width: 150px;
+    padding: 0.75rem;
+  }
+
+  .batch-reveal-name {
+    font-size: 0.85rem;
+  }
+
+  .batch-reveal-score-container .similarity-score-value {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .batch-reveal-card {
+    width: calc(50% - 0.5rem);
+    min-width: 130px;
+  }
+
+  .batch-reveal-original {
+    max-width: 180px;
+  }
+}
+
 /* ===== CEREMONY STYLES ===== */
 
 /* Main ceremony container */
