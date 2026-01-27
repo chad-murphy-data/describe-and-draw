@@ -417,6 +417,8 @@ export const useGame = (initialGameCode?: string) => {
     leaveGame,
     resetToLobby,
     isHost: currentPlayer?.isHost ?? false,
-    isSpeaker: gameState?.rounds[gameState.currentRound - 1]?.speakerId === currentPlayer?.id,
+    isSpeaker: gameState && gameState.currentRound > 0
+      ? gameState.rounds[gameState.currentRound - 1]?.speakerId === currentPlayer?.id
+      : false,
   };
 };
