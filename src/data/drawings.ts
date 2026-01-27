@@ -266,23 +266,6 @@ export const drawings: DrawingImage[] = [
     </svg>`
   },
   {
-    id: 'telephone',
-    name: 'Rotary Telephone',
-    difficulty: 'hard',
-    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <path d="M20 45 L20 80 L80 80 L80 45 C80 30 20 30 20 45" fill="none" stroke="currentColor" stroke-width="2"/>
-      <circle cx="50" cy="55" r="18" fill="none" stroke="currentColor" stroke-width="2"/>
-      <circle cx="50" cy="55" r="8" fill="none" stroke="currentColor" stroke-width="2"/>
-      <circle cx="50" cy="40" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
-      <circle cx="62" cy="45" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
-      <circle cx="38" cy="45" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
-      <circle cx="65" cy="58" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
-      <circle cx="35" cy="58" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path d="M25 25 C25 15 40 15 40 25 L40 35" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path d="M60 35 L60 25 C60 15 75 15 75 25" fill="none" stroke="currentColor" stroke-width="2"/>
-    </svg>`
-  },
-  {
     id: 'sailboat',
     name: 'Sailboat',
     difficulty: 'hard',
@@ -292,20 +275,6 @@ export const drawings: DrawingImage[] = [
       <path d="M50 70 L50 20" fill="none" stroke="currentColor" stroke-width="2"/>
       <path d="M50 25 L75 70 L50 70 Z" fill="none" stroke="currentColor" stroke-width="2"/>
       <path d="M50 20 L50 50 L30 50 Z" fill="none" stroke="currentColor" stroke-width="2"/>
-    </svg>`
-  },
-  {
-    id: 'helicopter',
-    name: 'Helicopter',
-    difficulty: 'hard',
-    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="40" cy="50" rx="25" ry="15" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path d="M65 50 L85 45 L90 50 L85 55 L65 50" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path d="M10 35 L70 35" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path d="M40 35 L40 50" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path d="M30 65 L25 75 L35 75 L30 65" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path d="M50 65 L45 75 L55 75 L50 65" fill="none" stroke="currentColor" stroke-width="2"/>
-      <circle cx="30" cy="48" r="6" fill="none" stroke="currentColor" stroke-width="2"/>
     </svg>`
   },
   {
@@ -357,28 +326,6 @@ export const drawings: DrawingImage[] = [
     </svg>`
   },
   {
-    id: 'windmill',
-    name: 'Windmill',
-    difficulty: 'hard',
-    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <path d="M40 90 L35 45 L65 45 L60 90 Z" fill="none" stroke="currentColor" stroke-width="2"/>
-      <circle cx="50" cy="40" r="5" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path d="M50 35 L45 10 L55 10 Z" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path d="M55 40 L80 35 L80 45 Z" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path d="M50 45 L55 70 L45 70 Z" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path d="M45 40 L20 35 L20 45 Z" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path d="M42 60 L42 70 L50 70 L50 60 Z" fill="none" stroke="currentColor" stroke-width="2"/>
-    </svg>`
-  },
-  {
-    id: 'trebleclef',
-    name: 'Treble Clef',
-    difficulty: 'hard',
-    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <path d="M55 85 C45 85 40 80 40 72 C40 65 48 60 55 65 C62 70 58 78 52 75 M52 75 L52 25 C52 15 65 15 65 25 C65 35 50 40 50 55 C50 70 70 75 70 55 C70 40 55 35 55 55" fill="none" stroke="currentColor" stroke-width="2"/>
-    </svg>`
-  },
-  {
     id: 'mushroom',
     name: 'Mushroom',
     difficulty: 'medium',
@@ -402,25 +349,6 @@ export const drawings: DrawingImage[] = [
       <circle cx="54" cy="20" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
       <path d="M46 26 L54 26" fill="none" stroke="currentColor" stroke-width="2"/>
       <path d="M40 12 L60 12 L55 8 L45 8 Z" fill="none" stroke="currentColor" stroke-width="2"/>
-    </svg>`
-  },
-  {
-    id: 'piano',
-    name: 'Piano Keys',
-    difficulty: 'hard',
-    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <rect x="10" y="25" width="80" height="50" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path d="M22 25 L22 75" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path d="M34 25 L34 75" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path d="M46 25 L46 75" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path d="M58 25 L58 75" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path d="M70 25 L70 75" fill="none" stroke="currentColor" stroke-width="2"/>
-      <path d="M82 25 L82 75" fill="none" stroke="currentColor" stroke-width="2"/>
-      <rect x="17" y="25" width="8" height="30" fill="none" stroke="currentColor" stroke-width="2"/>
-      <rect x="29" y="25" width="8" height="30" fill="none" stroke="currentColor" stroke-width="2"/>
-      <rect x="53" y="25" width="8" height="30" fill="none" stroke="currentColor" stroke-width="2"/>
-      <rect x="65" y="25" width="8" height="30" fill="none" stroke="currentColor" stroke-width="2"/>
-      <rect x="77" y="25" width="8" height="30" fill="none" stroke="currentColor" stroke-width="2"/>
     </svg>`
   },
   {
