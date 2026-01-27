@@ -33,16 +33,31 @@ export const DrawingCanvas = ({ onSubmit, disabled }: DrawingCanvasProps) => {
     const resizeCanvas = () => {
       const rect = container.getBoundingClientRect();
       const size = Math.min(rect.width, 500);
+
+      // Store existing content before resize (if any)
+      const existingData = canvas.width > 0 && canvas.height > 0
+        ? canvas.getContext('2d')?.getImageData(0, 0, canvas.width, canvas.height)
+        : null;
+
       canvas.width = size;
       canvas.height = size;
       canvas.style.width = `${size}px`;
       canvas.style.height = `${size}px`;
 
-      const ctx = canvas.getContext('2d');
+      // Get context with explicit settings for Safari compatibility
+      // willReadFrequently helps Safari optimize for getImageData/toDataURL calls
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (ctx) {
+        // Set default fill
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        saveToHistory();
+
+        // Restore existing content if this was a resize
+        if (existingData && existingData.width === size && existingData.height === size) {
+          ctx.putImageData(existingData, 0, 0);
+        } else {
+          saveToHistory();
+        }
       }
     };
 
@@ -53,7 +68,7 @@ export const DrawingCanvas = ({ onSubmit, disabled }: DrawingCanvasProps) => {
 
   const saveToHistory = useCallback(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
+    const ctx = canvas?.getContext('2d', { willReadFrequently: true });
     if (!canvas || !ctx) return;
 
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -95,7 +110,7 @@ export const DrawingCanvas = ({ onSubmit, disabled }: DrawingCanvasProps) => {
     e.preventDefault();
 
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
+    const ctx = canvas?.getContext('2d', { willReadFrequently: true });
     if (!canvas || !ctx || !lastPosRef.current) return;
 
     const pos = getPos(e);
@@ -131,7 +146,7 @@ export const DrawingCanvas = ({ onSubmit, disabled }: DrawingCanvasProps) => {
     if (historyIndex <= 0) return;
 
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
+    const ctx = canvas?.getContext('2d', { willReadFrequently: true });
     if (!canvas || !ctx) return;
 
     const newIndex = historyIndex - 1;
@@ -141,7 +156,7 @@ export const DrawingCanvas = ({ onSubmit, disabled }: DrawingCanvasProps) => {
 
   const handleClear = () => {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
+    const ctx = canvas?.getContext('2d', { willReadFrequently: true });
     if (!canvas || !ctx) return;
 
     ctx.fillStyle = 'white';
@@ -153,8 +168,48 @@ export const DrawingCanvas = ({ onSubmit, disabled }: DrawingCanvasProps) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const imageData = canvas.toDataURL('image/png');
-    onSubmit(imageData);
+    // Safari fix: Use requestAnimationFrame to ensure canvas is fully rendered
+    // before calling toDataURL. Safari can return empty/corrupt data if called
+    // synchronously after drawing operations.
+    requestAnimationFrame(() => {
+      // Double-RAF for Safari - ensures paint is complete
+      requestAnimationFrame(() => {
+        try {
+          const imageData = canvas.toDataURL('image/png');
+
+          // Validate the image data isn't empty (Safari bug workaround)
+          if (!imageData || imageData === 'data:,' || imageData.length < 100) {
+            console.error('Canvas toDataURL returned empty data');
+            // Fallback: try getting image data directly and creating blob
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              canvas.toBlob((blob) => {
+                if (blob) {
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    const base64 = reader.result as string;
+                    if (base64 && base64.length > 100) {
+                      onSubmit(base64);
+                    } else {
+                      alert('Unable to capture drawing. Please try again.');
+                    }
+                  };
+                  reader.readAsDataURL(blob);
+                } else {
+                  alert('Unable to capture drawing. Please try again.');
+                }
+              }, 'image/png');
+            }
+            return;
+          }
+
+          onSubmit(imageData);
+        } catch (error) {
+          console.error('Error capturing canvas:', error);
+          alert('Unable to capture drawing. Please try again.');
+        }
+      });
+    });
   };
 
   return (
