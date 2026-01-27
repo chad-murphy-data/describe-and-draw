@@ -33,11 +33,14 @@ export interface Round {
   status: RoundStatus;
 }
 
+export type Difficulty = 'easy' | 'medium' | 'hard' | 'all';
+
 export interface GameConfig {
   totalRounds: number | 'all';
   gameMode: GameMode;
   scoringEnabled: boolean;
   votingEnabled: boolean;
+  difficulty: Difficulty;
 }
 
 export interface GameState {

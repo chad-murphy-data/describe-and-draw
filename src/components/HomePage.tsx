@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GameConfig, GameMode } from '../types';
+import { GameConfig, GameMode, Difficulty } from '../types';
 import { useGame } from '../hooks/useGame';
 
 export const HomePage = () => {
@@ -18,6 +18,7 @@ export const HomePage = () => {
   const [totalRounds, setTotalRounds] = useState<number | 'all'>('all');
   const [scoringEnabled, setScoringEnabled] = useState(true);
   const [votingEnabled, setVotingEnabled] = useState(false);
+  const [difficulty, setDifficulty] = useState<Difficulty>('all');
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +30,7 @@ export const HomePage = () => {
       gameMode,
       scoringEnabled: gameMode !== 'simple' && scoringEnabled,
       votingEnabled,
+      difficulty,
     };
 
     try {
@@ -152,6 +154,20 @@ export const HomePage = () => {
                 <option value="5">5 rounds</option>
                 <option value="7">7 rounds</option>
                 <option value="10">10 rounds</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Difficulty</label>
+              <select
+                className="form-input"
+                value={difficulty}
+                onChange={(e) => setDifficulty(e.target.value as Difficulty)}
+              >
+                <option value="all">Mixed (All difficulties)</option>
+                <option value="easy">Easy - Simple shapes</option>
+                <option value="medium">Medium - Recognizable objects</option>
+                <option value="hard">Hard - Detailed drawings</option>
               </select>
             </div>
 

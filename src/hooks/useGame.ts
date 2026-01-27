@@ -183,7 +183,8 @@ export const useGame = (initialGameCode?: string) => {
 
     // Create first round
     const usedImages: string[] = [];
-    const firstImage = getRandomDrawing(usedImages);
+    const difficulty = gameState.config.difficulty || 'all';
+    const firstImage = getRandomDrawing(usedImages, difficulty);
     if (!firstImage) return;
 
     const firstRound: Round = {
@@ -348,7 +349,8 @@ export const useGame = (initialGameCode?: string) => {
 
     // Get used images
     const usedImages = gameState.rounds.map(r => r.imageId);
-    const nextImage = getRandomDrawing(usedImages);
+    const difficulty = gameState.config.difficulty || 'all';
+    const nextImage = getRandomDrawing(usedImages, difficulty);
 
     if (!nextImage) {
       updateGameState(prev => ({

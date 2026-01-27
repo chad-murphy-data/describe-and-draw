@@ -395,8 +395,14 @@ export const drawings: DrawingImage[] = [
   }
 ];
 
-export const getRandomDrawing = (usedIds: string[] = []): DrawingImage | null => {
-  const available = drawings.filter(d => !usedIds.includes(d.id));
+export const getRandomDrawing = (
+  usedIds: string[] = [],
+  difficulty: 'easy' | 'medium' | 'hard' | 'all' = 'all'
+): DrawingImage | null => {
+  const available = drawings.filter(d =>
+    !usedIds.includes(d.id) &&
+    (difficulty === 'all' || d.difficulty === difficulty)
+  );
   if (available.length === 0) return null;
   return available[Math.floor(Math.random() * available.length)];
 };
