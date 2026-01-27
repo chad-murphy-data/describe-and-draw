@@ -35,6 +35,20 @@ const getDb = () => {
 
 const GAMES_PATH = 'games';
 
+// Normalize game state from Firebase (Firebase removes empty arrays)
+const normalizeGameState = (state: GameState): GameState => {
+  return {
+    ...state,
+    players: state.players || [],
+    speakerOrder: state.speakerOrder || [],
+    rounds: (state.rounds || []).map(round => ({
+      ...round,
+      submissions: round.submissions || [],
+      votes: round.votes || {},
+    })),
+  };
+};
+
 // Save game state to Firebase
 export const saveGameStateFirebase = async (state: GameState): Promise<void> => {
   try {
@@ -54,7 +68,7 @@ export const getGameStateFirebase = async (gameCode: string): Promise<GameState 
     const gameRef = ref(db, `${GAMES_PATH}/${gameCode}`);
     const snapshot = await get(gameRef);
     if (snapshot.exists()) {
-      return snapshot.val() as GameState;
+      return normalizeGameState(snapshot.val() as GameState);
     }
     return null;
   } catch (error) {
@@ -73,7 +87,7 @@ export const subscribeToGame = (
 
   onValue(gameRef, (snapshot) => {
     if (snapshot.exists()) {
-      callback(snapshot.val() as GameState);
+      callback(normalizeGameState(snapshot.val() as GameState));
     } else {
       callback(null);
     }
