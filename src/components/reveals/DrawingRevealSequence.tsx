@@ -17,14 +17,13 @@ interface DrawingRevealSequenceProps {
   isHost: boolean;
 }
 
-type Phase = 'tease' | 'original' | 'curtain' | 'score' | 'reaction' | 'complete';
+// Simplified phases - curtain and score now happen together
+type Phase = 'tease' | 'reveal' | 'reaction' | 'complete';
 
 const PHASE_DURATIONS: Record<Phase, number> = {
-  tease: 2000,
-  original: 2000,
-  curtain: 1500,
-  score: 4000,
-  reaction: 1500,
+  tease: 1200,      // Shortened from 2000
+  reveal: 4000,     // Curtain + score happen simultaneously
+  reaction: 1200,   // Brief pause for reactions
   complete: 0,
 };
 
@@ -55,17 +54,11 @@ export const DrawingRevealSequence = ({
 
   const advancePhase = useCallback(() => {
     setPhase((current) => {
-      const phases: Phase[] = ['tease', 'original', 'curtain', 'score', 'reaction', 'complete'];
+      const phases: Phase[] = ['tease', 'reveal', 'reaction', 'complete'];
       const currentIndex = phases.indexOf(current);
-
-      // Skip score phase if scoring is disabled
-      if (phases[currentIndex + 1] === 'score' && !scoringEnabled) {
-        return 'reaction';
-      }
-
       return phases[currentIndex + 1] || 'complete';
     });
-  }, [scoringEnabled]);
+  }, []);
 
   // Handle phase transitions
   useEffect(() => {
@@ -75,15 +68,16 @@ export const DrawingRevealSequence = ({
     }
 
     // Handle phase-specific effects
-    if (phase === 'curtain') {
+    if (phase === 'reveal') {
+      // Start curtain and score animation simultaneously
       setCurtainOpen(true);
       playCurtain();
-    }
 
-    if (phase === 'score') {
-      const drumrollStop = playDrumroll();
-      if (drumrollStop) {
-        setStopDrumroll(() => drumrollStop);
+      if (scoringEnabled) {
+        const drumrollStop = playDrumroll();
+        if (drumrollStop) {
+          setStopDrumroll(() => drumrollStop);
+        }
       }
     }
 
@@ -93,7 +87,7 @@ export const DrawingRevealSequence = ({
       const timer = setTimeout(advancePhase, duration);
       return () => clearTimeout(timer);
     }
-  }, [phase, advancePhase, onComplete, playCurtain, playDrumroll]);
+  }, [phase, advancePhase, onComplete, playCurtain, playDrumroll, scoringEnabled]);
 
   const handleScoreComplete = useCallback(() => {
     if (stopDrumroll) {
@@ -128,7 +122,7 @@ export const DrawingRevealSequence = ({
       )}
 
       <AnimatePresence mode="wait">
-        {/* Phase 1: Tease */}
+        {/* Phase 1: Tease - shortened */}
         {phase === 'tease' && (
           <motion.div
             key="tease"
@@ -141,23 +135,16 @@ export const DrawingRevealSequence = ({
               className="tease-text"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
+              transition={{ delay: 0.1 }}
             >
-              Let's see how <span className="highlight">{drawerName}</span> interpreted
-            </motion.p>
-            <motion.p
-              className="tease-text"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-            >
+              Let's see how <span className="highlight">{drawerName}</span> interpreted{' '}
               <span className="highlight">{describerName}</span>'s vision...
             </motion.p>
           </motion.div>
         )}
 
-        {/* Phase 2+: Main reveal area */}
-        {phase !== 'tease' && (
+        {/* Phase 2: Reveal - curtain and score happen together */}
+        {(phase === 'reveal' || phase === 'reaction') && (
           <motion.div
             key="reveal"
             className="reveal-phase reveal-main"
@@ -165,18 +152,12 @@ export const DrawingRevealSequence = ({
             animate={{ opacity: 1 }}
           >
             <div className="reveal-comparison">
-              {/* Original image with spotlight */}
+              {/* Original image */}
               <div className="reveal-original">
                 <motion.div
                   className="reveal-image-container"
                   initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{
-                    scale: 1,
-                    opacity: 1,
-                    boxShadow: phase === 'original'
-                      ? '0 0 40px rgba(233, 69, 96, 0.5)'
-                      : '0 0 0px rgba(233, 69, 96, 0)',
-                  }}
+                  animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.5 }}
                 >
                   <h4 className="reveal-label">Original</h4>
@@ -195,16 +176,17 @@ export const DrawingRevealSequence = ({
               </div>
             </div>
 
-            {/* Score display */}
-            {scoringEnabled && (phase === 'score' || phase === 'reaction') && (
+            {/* Score display - starts immediately with curtain */}
+            {scoringEnabled && (
               <motion.div
                 className="reveal-score-area"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
               >
                 <SimilarityScore
                   finalScore={similarityScore}
-                  animate={phase === 'score'}
+                  animate={phase === 'reveal'}
                   onAnimationComplete={handleScoreComplete}
                   onHighScore={handleHighScore}
                 />

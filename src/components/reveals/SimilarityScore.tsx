@@ -35,10 +35,10 @@ export const SimilarityScore = ({
       return;
     }
 
-    // Phase 1: Rapid climb to random value (60-80%)
+    // Phase 1: Rapid climb to random value (60-80%) - shortened
     setPhase('climbing');
     const climbTarget = 60 + Math.random() * 20;
-    const climbDuration = 800;
+    const climbDuration = 500;  // Was 800
     const climbStart = Date.now();
 
     await new Promise<void>((resolve) => {
@@ -55,9 +55,9 @@ export const SimilarityScore = ({
       }, 16);
     });
 
-    // Phase 2: Wobble up and down for suspense
+    // Phase 2: Wobble up and down for suspense - shortened
     setPhase('wobbling');
-    const wobbleDuration = 2500;
+    const wobbleDuration = 1800;  // Was 2500
     const wobbleStart = Date.now();
     let currentValue = climbTarget;
 
@@ -77,19 +77,19 @@ export const SimilarityScore = ({
         const delta = (Math.random() - 0.5) * 2 * maxDelta;
 
         // Gradually drift toward final score
-        const drift = (finalScore - currentValue) * 0.05;
+        const drift = (finalScore - currentValue) * 0.08;  // Faster drift
         currentValue = currentValue + delta + drift;
         currentValue = Math.max(0, Math.min(100, currentValue));
 
         setDisplayScore(Math.round(currentValue));
-      }, 100);
+      }, 80);  // Was 100
     });
 
-    // Phase 3: Settle to final score
+    // Phase 3: Settle to final score - shortened
     setPhase('settling');
     const settleStart = Date.now();
     const settleFrom = displayScore;
-    const settleDuration = 600;
+    const settleDuration = 400;  // Was 600
 
     await new Promise<void>((resolve) => {
       const settleInterval = setInterval(() => {
