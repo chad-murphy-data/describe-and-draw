@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { GameState, Player, Round, Submission } from '../types';
 import { DrawingDisplay } from './DrawingDisplay';
 import { getDrawingById } from '../data/drawings';
 import { scoreSubmission, ScoringResult } from '../utils/imageScoring';
+import { DrawingRevealSequence } from './reveals';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 interface RevealViewProps {
   gameState: GameState;
@@ -27,7 +29,11 @@ export const RevealView = ({
 }: RevealViewProps) => {
   const [scoringResults, setScoringResults] = useState<Record<string, ScoringResult>>({});
   const [currentlyScoring, setCurrentlyScoring] = useState<string | null>(null);
+  const [showingDramaticReveal, setShowingDramaticReveal] = useState(false);
+  const [dramaticRevealIndex, setDramaticRevealIndex] = useState(-1);
+  const [pendingScore, setPendingScore] = useState<{ playerId: string; score: number; alignmentInfo: Submission['alignmentInfo'] } | null>(null);
 
+  const isMobile = useIsMobile();
   const isSpeakerOrHost = currentRound.speakerId === currentPlayer.id || currentPlayer.isHost;
   const drawing = getDrawingById(currentRound.imageId);
   const submissions = currentRound.submissions;
@@ -37,14 +43,47 @@ export const RevealView = ({
   const isCompleted = currentRound.status === 'completed';
   const hasVoted = currentPlayer.id in currentRound.votes;
 
-  // Score submissions as they're revealed - ONLY speaker/host scores to ensure consistency
+  // Get the submission currently being dramatically revealed
+  const currentDramaticSubmission = dramaticRevealIndex >= 0 ? submissions[dramaticRevealIndex] : null;
+
+  // Pre-score the submission being dramatically revealed
   useEffect(() => {
-    if (!gameState.config.scoringEnabled || !drawing || !isSpeakerOrHost) {
+    if (!showingDramaticReveal || !currentDramaticSubmission || !drawing || !gameState.config.scoringEnabled) {
+      return;
+    }
+
+    if (scoringResults[currentDramaticSubmission.playerId] || currentDramaticSubmission.score !== undefined) {
+      return;
+    }
+
+    // Only speaker/host calculates scores
+    if (!isSpeakerOrHost) return;
+
+    const calculateScore = async () => {
+      try {
+        const result = await scoreSubmission(drawing.svg, currentDramaticSubmission.imageData);
+        setScoringResults(prev => ({ ...prev, [currentDramaticSubmission.playerId]: result }));
+        // Store pending score to update after animation
+        setPendingScore({
+          playerId: currentDramaticSubmission.playerId,
+          score: result.score,
+          alignmentInfo: result.alignmentInfo,
+        });
+      } catch (error) {
+        console.error('Scoring error:', error);
+      }
+    };
+
+    calculateScore();
+  }, [showingDramaticReveal, currentDramaticSubmission, drawing, gameState.config.scoringEnabled, scoringResults, isSpeakerOrHost]);
+
+  // Score already-revealed submissions that don't have scores yet (for non-host clients)
+  useEffect(() => {
+    if (!gameState.config.scoringEnabled || !drawing || !isSpeakerOrHost || showingDramaticReveal) {
       return;
     }
 
     const scoreNext = async () => {
-      // Find first submission that needs scoring (not already scored in Firebase)
       const unscored = revealedSubmissions.find(
         s => s.score === undefined && !scoringResults[s.playerId] && currentlyScoring !== s.playerId
       );
@@ -65,7 +104,7 @@ export const RevealView = ({
     };
 
     scoreNext();
-  }, [revealedSubmissions.length, drawing, gameState.config.scoringEnabled, scoringResults, currentlyScoring, onUpdateScore, isSpeakerOrHost]);
+  }, [revealedSubmissions.length, drawing, gameState.config.scoringEnabled, scoringResults, currentlyScoring, onUpdateScore, isSpeakerOrHost, showingDramaticReveal]);
 
   // Calculate vote counts
   const voteCounts: Record<string, number> = {};
@@ -77,7 +116,6 @@ export const RevealView = ({
     return gameState.players.find(p => p.id === playerId)?.name || 'Unknown';
   };
 
-  // Get winner(s) for completed round
   const getWinners = () => {
     const maxVotes = Math.max(...Object.values(voteCounts), 0);
     if (maxVotes === 0) return [];
@@ -86,6 +124,103 @@ export const RevealView = ({
       .map(([playerId]) => playerId);
   };
 
+  // Handle starting a dramatic reveal
+  const handleRevealNext = useCallback(() => {
+    const nextIndex = currentRound.revealedCount;
+    if (nextIndex >= submissions.length) {
+      // No more to reveal, transition to voting
+      onRevealNext();
+      return;
+    }
+
+    // On mobile or for non-hosts, skip dramatic reveal
+    if (isMobile || !isSpeakerOrHost) {
+      onRevealNext();
+      return;
+    }
+
+    // Start dramatic reveal
+    setDramaticRevealIndex(nextIndex);
+    setShowingDramaticReveal(true);
+  }, [currentRound.revealedCount, submissions.length, isMobile, isSpeakerOrHost, onRevealNext]);
+
+  // Handle dramatic reveal completion
+  const handleDramaticRevealComplete = useCallback(() => {
+    // Update the score in Firebase if we calculated one
+    if (pendingScore) {
+      onUpdateScore(pendingScore.playerId, pendingScore.score, pendingScore.alignmentInfo);
+      setPendingScore(null);
+    }
+
+    setShowingDramaticReveal(false);
+    setDramaticRevealIndex(-1);
+    onRevealNext();
+  }, [pendingScore, onUpdateScore, onRevealNext]);
+
+  // Handle skip button
+  const handleSkipReveal = useCallback(() => {
+    if (pendingScore) {
+      onUpdateScore(pendingScore.playerId, pendingScore.score, pendingScore.alignmentInfo);
+      setPendingScore(null);
+    }
+    setShowingDramaticReveal(false);
+    setDramaticRevealIndex(-1);
+    onRevealNext();
+  }, [pendingScore, onUpdateScore, onRevealNext]);
+
+  // Get score for the dramatic reveal
+  const getDramaticScore = (): number => {
+    if (!currentDramaticSubmission) return 0;
+    if (pendingScore?.playerId === currentDramaticSubmission.playerId) {
+      return pendingScore.score;
+    }
+    if (scoringResults[currentDramaticSubmission.playerId]) {
+      return scoringResults[currentDramaticSubmission.playerId].score;
+    }
+    if (currentDramaticSubmission.score !== undefined) {
+      return currentDramaticSubmission.score;
+    }
+    return 0;
+  };
+
+  // Show dramatic reveal sequence
+  if (showingDramaticReveal && currentDramaticSubmission && drawing) {
+    const drawerName = getPlayerName(currentDramaticSubmission.playerId);
+    const describerName = getPlayerName(currentRound.speakerId);
+
+    return (
+      <div className="container" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
+        <div className="text-center mb-2">
+          <span className="badge badge-accent">Round {currentRound.roundNumber}</span>
+        </div>
+        <DrawingRevealSequence
+          drawerName={drawerName}
+          describerName={describerName}
+          originalImage={<DrawingDisplay imageId={currentRound.imageId} size="medium" />}
+          submittedImage={
+            <img
+              src={currentDramaticSubmission.imageData}
+              alt={`Drawing by ${drawerName}`}
+              style={{
+                width: '100%',
+                aspectRatio: '1',
+                objectFit: 'contain',
+                background: 'white',
+                borderRadius: '8px',
+              }}
+            />
+          }
+          similarityScore={getDramaticScore()}
+          scoringEnabled={gameState.config.scoringEnabled}
+          onComplete={handleDramaticRevealComplete}
+          onSkip={handleSkipReveal}
+          isHost={currentPlayer.isHost}
+        />
+      </div>
+    );
+  }
+
+  // Standard reveal grid view
   return (
     <div className="container" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
       <div className="text-center mb-4">
@@ -203,7 +338,7 @@ export const RevealView = ({
       {/* Control buttons */}
       <div className="flex flex-col items-center gap-2">
         {!allRevealed && isSpeakerOrHost && (
-          <button className="btn btn-primary btn-large" onClick={onRevealNext}>
+          <button className="btn btn-primary btn-large" onClick={handleRevealNext}>
             Reveal Next Drawing ({currentRound.revealedCount + 1} of {submissions.length})
           </button>
         )}
