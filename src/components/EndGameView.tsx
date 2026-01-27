@@ -1,8 +1,19 @@
 import { useState, useCallback } from 'react';
-import { GameState, Player } from '../types';
+import { GameState, Player, VotingStyle } from '../types';
 import { getDrawingById } from '../data/drawings';
 import { CeremonyOrchestrator } from './ceremony';
 import { useIsMobile } from '../hooks/useIsMobile';
+
+// Get points for a given rank
+const getPointsForRank = (rank: number, style: VotingStyle): number => {
+  if (style === 'top2') {
+    return rank === 0 ? 2 : rank === 1 ? 1 : 0;
+  }
+  if (style === 'top3') {
+    return rank === 0 ? 3 : rank === 1 ? 2 : rank === 2 ? 1 : 0;
+  }
+  return 0;
+};
 
 interface EndGameViewProps {
   gameState: GameState;
@@ -20,11 +31,12 @@ export const EndGameView = ({ gameState, currentPlayer, onPlayAgain, onLeave }: 
     return gameState.players.find(p => p.id === playerId)?.name || 'Unknown';
   };
 
-  // Skip ceremony on mobile or if scoring is disabled
+  // Skip ceremony on mobile or if neither scoring nor voting is enabled
+  const hasVoting = gameState.config.votingEnabled && gameState.config.votingStyle !== 'none';
   const shouldShowCeremony = showCeremony &&
     !ceremonyComplete &&
     !isMobile &&
-    gameState.config.scoringEnabled &&
+    (gameState.config.scoringEnabled || hasVoting) &&
     gameState.rounds.length > 0;
 
   const handleCeremonyComplete = useCallback(() => {
@@ -52,37 +64,64 @@ export const EndGameView = ({ gameState, currentPlayer, onPlayAgain, onLeave }: 
   }
 
   // Calculate scores for static leaderboard
-  const playerScores: Record<string, { totalScore: number; totalVotes: number; submissions: number }> = {};
+  const votingStyle = gameState.config.votingStyle || 'top3';
+  const isSimpleMode = gameState.config.gameMode === 'simple';
+  const playerScores: Record<string, { totalScore: number; totalPoints: number; roundsPlayed: number }> = {};
 
   gameState.players.forEach(player => {
-    playerScores[player.id] = { totalScore: 0, totalVotes: 0, submissions: 0 };
+    playerScores[player.id] = { totalScore: 0, totalPoints: 0, roundsPlayed: 0 };
   });
 
   gameState.rounds.forEach(round => {
-    // Count scores from submissions
+    // Count scores from digital submissions (canvas/upload modes)
     round.submissions.forEach(submission => {
       if (playerScores[submission.playerId]) {
         playerScores[submission.playerId].totalScore += submission.score || 0;
-        playerScores[submission.playerId].submissions += 1;
+        playerScores[submission.playerId].roundsPlayed += 1;
       }
     });
 
-    // Count votes
-    Object.values(round.votes).forEach(voteeId => {
-      if (playerScores[voteeId]) {
-        playerScores[voteeId].totalVotes += 1;
-      }
-    });
+    // Count ranked vote points (new system)
+    if (round.rankedVotes && Object.keys(round.rankedVotes).length > 0) {
+      Object.values(round.rankedVotes).forEach(picks => {
+        picks.forEach((playerId, rank) => {
+          if (playerScores[playerId]) {
+            playerScores[playerId].totalPoints += getPointsForRank(rank, votingStyle);
+          }
+        });
+      });
+    } else {
+      // Fallback to legacy single votes (1 point each)
+      Object.values(round.votes).forEach(voteeId => {
+        if (playerScores[voteeId]) {
+          playerScores[voteeId].totalPoints += 1;
+        }
+      });
+    }
+
+    // For simple mode, count rounds played for each non-speaker player
+    if (isSimpleMode) {
+      gameState.players.forEach(player => {
+        if (player.id !== round.speakerId && playerScores[player.id]) {
+          playerScores[player.id].roundsPlayed += 1;
+        }
+      });
+    }
   });
 
-  // Sort by score then by votes
+  // Sort by points (for voting) or by score (for digital modes)
   const sortedPlayers = Object.entries(playerScores)
-    .filter(([, stats]) => stats.submissions > 0)
+    .filter(([, stats]) => stats.roundsPlayed > 0 || stats.totalPoints > 0)
     .sort((a, b) => {
-      const scoreA = a[1].submissions > 0 ? a[1].totalScore / a[1].submissions : 0;
-      const scoreB = b[1].submissions > 0 ? b[1].totalScore / b[1].submissions : 0;
+      // For simple mode or voting-only, sort by points
+      if (isSimpleMode || !gameState.config.scoringEnabled) {
+        return b[1].totalPoints - a[1].totalPoints;
+      }
+      // For digital modes with scoring, sort by average score then by points
+      const scoreA = a[1].roundsPlayed > 0 ? a[1].totalScore / a[1].roundsPlayed : 0;
+      const scoreB = b[1].roundsPlayed > 0 ? b[1].totalScore / b[1].roundsPlayed : 0;
       if (scoreB !== scoreA) return scoreB - scoreA;
-      return b[1].totalVotes - a[1].totalVotes;
+      return b[1].totalPoints - a[1].totalPoints;
     });
 
   return (
@@ -95,14 +134,14 @@ export const EndGameView = ({ gameState, currentPlayer, onPlayAgain, onLeave }: 
       </div>
 
       {/* Leaderboard */}
-      {(gameState.config.scoringEnabled || gameState.config.votingEnabled) && sortedPlayers.length > 0 && (
+      {(gameState.config.scoringEnabled || gameState.config.votingEnabled) && votingStyle !== 'none' && sortedPlayers.length > 0 && (
         <div className="card mb-4" style={{ maxWidth: '500px', margin: '0 auto' }}>
           <h2 className="text-center mb-3">Leaderboard</h2>
           <div className="flex flex-col gap-2">
             {sortedPlayers.map(([playerId, stats], index) => {
-              const avgScore = stats.submissions > 0 ? Math.round(stats.totalScore / stats.submissions) : 0;
+              const avgScore = stats.roundsPlayed > 0 ? Math.round(stats.totalScore / stats.roundsPlayed) : 0;
               const isCurrentPlayer = playerId === currentPlayer.id;
-              const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
+              const medal = index === 0 ? '1st' : index === 1 ? '2nd' : index === 2 ? '3rd' : '';
 
               return (
                 <div
@@ -116,21 +155,21 @@ export const EndGameView = ({ gameState, currentPlayer, onPlayAgain, onLeave }: 
                   }}
                 >
                   <div className="flex items-center gap-2">
-                    <span style={{ fontSize: '1.25rem', width: '2rem' }}>{medal || `#${index + 1}`}</span>
+                    <span style={{ fontSize: '1rem', width: '2.5rem', fontWeight: 600 }}>{medal || `#${index + 1}`}</span>
                     <span style={{ fontWeight: isCurrentPlayer ? 600 : 400 }}>
                       {getPlayerName(playerId)}
                       {isCurrentPlayer && ' (you)'}
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
-                    {gameState.config.scoringEnabled && (
+                    {gameState.config.scoringEnabled && !isSimpleMode && (
                       <span className="text-success" style={{ fontWeight: 600 }}>
                         {avgScore}% avg
                       </span>
                     )}
                     {gameState.config.votingEnabled && (
-                      <span className="text-muted">
-                        {stats.totalVotes} vote{stats.totalVotes !== 1 ? 's' : ''}
+                      <span className="text-accent" style={{ fontWeight: 600 }}>
+                        {stats.totalPoints} pt{stats.totalPoints !== 1 ? 's' : ''}
                       </span>
                     )}
                   </div>

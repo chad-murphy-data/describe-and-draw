@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { GameState, Player, GameConfig, Submission, Round } from '../types';
+import { GameState, Player, GameConfig, Submission, Round, VotingStyle, Difficulty } from '../types';
 import { getPlayerSession, savePlayerSession, clearPlayerSession } from '../utils/storage';
 import { saveGameStateFirebase, getGameStateFirebase, subscribeToGame } from '../utils/firebase';
 import { generateGameCode, generatePlayerId, shuffleArray } from '../utils/gameCode';
@@ -193,6 +193,7 @@ export const useGame = (initialGameCode?: string) => {
       imageId: firstImage.id,
       submissions: [],
       votes: {},
+      rankedVotes: {},
       revealedCount: 0,
       status: 'describing',
     };
@@ -366,6 +367,7 @@ export const useGame = (initialGameCode?: string) => {
       imageId: nextImage.id,
       submissions: [],
       votes: {},
+      rankedVotes: {},
       revealedCount: 0,
       status: 'describing',
     };
@@ -400,6 +402,37 @@ export const useGame = (initialGameCode?: string) => {
     }));
   }, [gameState, currentPlayer, updateGameState]);
 
+  // Update game config (for lobby settings changes)
+  const updateConfig = useCallback((updates: { votingStyle?: VotingStyle; difficulty?: Difficulty; votingEnabled?: boolean }) => {
+    if (!gameState || !currentPlayer?.isHost) return;
+    if (gameState.status !== 'lobby') return;
+
+    updateGameState(prev => ({
+      ...prev,
+      config: {
+        ...prev.config,
+        ...updates,
+      },
+    }));
+  }, [gameState, currentPlayer, updateGameState]);
+
+  // Cast a ranked vote (for top 2 or top 3 voting)
+  const castRankedVote = useCallback((rankedPicks: string[]) => {
+    if (!gameState || !currentPlayer) return;
+
+    // Validate: can't vote for yourself
+    if (rankedPicks.includes(currentPlayer.id)) return;
+
+    updateGameState(prev => ({
+      ...prev,
+      rounds: prev.rounds.map((r, i) =>
+        i === prev.currentRound - 1
+          ? { ...r, rankedVotes: { ...r.rankedVotes, [currentPlayer.id]: rankedPicks } }
+          : r
+      ),
+    }));
+  }, [gameState, currentPlayer, updateGameState]);
+
   return {
     gameState,
     currentPlayer,
@@ -414,10 +447,12 @@ export const useGame = (initialGameCode?: string) => {
     startReveal,
     revealNext,
     castVote,
+    castRankedVote,
     endVoting,
     nextRound,
     leaveGame,
     resetToLobby,
+    updateConfig,
     isHost: currentPlayer?.isHost ?? false,
     isSpeaker: gameState && gameState.currentRound > 0
       ? gameState.rounds[gameState.currentRound - 1]?.speakerId === currentPlayer?.id

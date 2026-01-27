@@ -21,10 +21,12 @@ export const GamePage = () => {
     startReveal,
     revealNext,
     castVote,
+    castRankedVote,
     endVoting,
     nextRound,
     leaveGame,
     resetToLobby,
+    updateConfig,
     isSpeaker,
   } = useGame(gameCode);
 
@@ -62,6 +64,7 @@ export const GamePage = () => {
         currentPlayer={currentPlayer}
         onStartGame={startGame}
         onLeave={handleLeave}
+        onUpdateConfig={updateConfig}
       />
     );
   }
@@ -101,6 +104,7 @@ export const GamePage = () => {
         onRevealNext={revealNext}
         onUpdateScore={updateSubmissionScore}
         onCastVote={castVote}
+        onCastRankedVote={castRankedVote}
         onEndVoting={endVoting}
         onNextRound={nextRound}
       />

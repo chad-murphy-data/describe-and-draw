@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { GameState, Player, Round, Submission } from '../types';
+import { GameState, Player, Round, Submission, VotingStyle } from '../types';
 import { DrawingDisplay } from './DrawingDisplay';
 import { getDrawingById } from '../data/drawings';
 import { scoreSubmission, ScoringResult } from '../utils/imageScoring';
@@ -12,10 +12,29 @@ interface RevealViewProps {
   currentPlayer: Player;
   onRevealNext: () => void;
   onUpdateScore: (playerId: string, score: number, alignmentInfo: Submission['alignmentInfo']) => void;
-  onCastVote: (playerId: string) => void;
+  onCastVote: (playerId: string) => void; // Legacy single vote (kept for backwards compatibility)
+  onCastRankedVote: (rankedPicks: string[]) => void;
   onEndVoting: () => void;
   onNextRound: () => void;
 }
+
+// Get required number of picks based on voting style
+const getRequiredPicks = (style: VotingStyle): number => {
+  if (style === 'top2') return 2;
+  if (style === 'top3') return 3;
+  return 0;
+};
+
+// Calculate points for a given rank
+const getPointsForRank = (rank: number, style: VotingStyle): number => {
+  if (style === 'top2') {
+    return rank === 0 ? 2 : rank === 1 ? 1 : 0;
+  }
+  if (style === 'top3') {
+    return rank === 0 ? 3 : rank === 1 ? 2 : rank === 2 ? 1 : 0;
+  }
+  return 0;
+};
 
 export const RevealView = ({
   gameState,
@@ -23,7 +42,8 @@ export const RevealView = ({
   currentPlayer,
   onRevealNext,
   onUpdateScore,
-  onCastVote,
+  onCastVote: _onCastVote, // Legacy - kept for backwards compatibility
+  onCastRankedVote,
   onEndVoting,
   onNextRound,
 }: RevealViewProps) => {
@@ -33,8 +53,12 @@ export const RevealView = ({
   const [dramaticRevealIndex, setDramaticRevealIndex] = useState(-1);
   const [pendingScore, setPendingScore] = useState<{ playerId: string; score: number; alignmentInfo: Submission['alignmentInfo'] } | null>(null);
   const [showingBatchReveal, setShowingBatchReveal] = useState(false);
+  const [showingHoldUpMoment, setShowingHoldUpMoment] = useState(false);
+  const [rankedPicks, setRankedPicks] = useState<string[]>([]);
 
   const isMobile = useIsMobile();
+  const votingStyle = gameState.config.votingStyle || 'top3';
+  const requiredPicks = getRequiredPicks(votingStyle);
   const isSpeakerOrHost = currentRound.speakerId === currentPlayer.id || currentPlayer.isHost;
   const drawing = getDrawingById(currentRound.imageId);
   const submissions = currentRound.submissions;
@@ -42,9 +66,9 @@ export const RevealView = ({
   const allRevealed = currentRound.revealedCount >= submissions.length;
   const isVoting = currentRound.status === 'voting';
   const isCompleted = currentRound.status === 'completed';
-  const hasVoted = currentPlayer.id in currentRound.votes;
 
   // Round 1 gets dramatic per-drawing reveals, rounds 2+ get batch reveal
+  // For simple mode (paper), we show "Hold up drawings!" instead
   const isFirstRound = currentRound.roundNumber === 1;
 
   // Get the submission currently being dramatically revealed
@@ -133,11 +157,30 @@ export const RevealView = ({
     scoreNext();
   }, [revealedSubmissions.length, drawing, gameState.config.scoringEnabled, scoringResults, currentlyScoring, onUpdateScore, isSpeakerOrHost, showingDramaticReveal, showingBatchReveal]);
 
-  // Calculate vote counts
+  // Calculate vote counts/points based on voting style
   const voteCounts: Record<string, number> = {};
-  Object.values(currentRound.votes).forEach(voteeId => {
-    voteCounts[voteeId] = (voteCounts[voteeId] || 0) + 1;
-  });
+
+  if (votingStyle === 'none') {
+    // No voting
+  } else if (currentRound.rankedVotes && Object.keys(currentRound.rankedVotes).length > 0) {
+    // Use ranked votes (new system)
+    Object.values(currentRound.rankedVotes).forEach(picks => {
+      picks.forEach((playerId, rank) => {
+        const points = getPointsForRank(rank, votingStyle);
+        voteCounts[playerId] = (voteCounts[playerId] || 0) + points;
+      });
+    });
+  } else {
+    // Fallback to legacy single votes
+    Object.values(currentRound.votes).forEach(voteeId => {
+      voteCounts[voteeId] = (voteCounts[voteeId] || 0) + 1;
+    });
+  }
+
+  // Check if current player has voted (ranked or legacy)
+  const hasVotedRanked = currentRound.rankedVotes && currentPlayer.id in currentRound.rankedVotes;
+  const hasVotedLegacy = currentPlayer.id in currentRound.votes;
+  const hasVoted = hasVotedRanked || hasVotedLegacy;
 
   const getPlayerName = (playerId: string) => {
     return gameState.players.find(p => p.id === playerId)?.name || 'Unknown';
@@ -151,8 +194,16 @@ export const RevealView = ({
       .map(([playerId]) => playerId);
   };
 
-  // Handle starting a reveal (dramatic for round 1, batch for rounds 2+)
+  // Handle starting a reveal (dramatic for round 1, batch for rounds 2+, hold-up for simple mode)
   const handleRevealNext = useCallback(() => {
+    const isSimpleMode = gameState.config.gameMode === 'simple';
+
+    // Simple mode: Show "Hold up your drawings!" moment
+    if (isSimpleMode && currentRound.revealedCount === 0 && !showingHoldUpMoment) {
+      setShowingHoldUpMoment(true);
+      return;
+    }
+
     // On mobile or for non-hosts, skip all animations
     if (isMobile || !isSpeakerOrHost) {
       // Reveal all at once
@@ -162,8 +213,8 @@ export const RevealView = ({
       return;
     }
 
-    // Round 1: Dramatic per-drawing reveal
-    if (isFirstRound) {
+    // Round 1: Dramatic per-drawing reveal (for canvas/upload modes)
+    if (isFirstRound && !isSimpleMode) {
       const nextIndex = currentRound.revealedCount;
       if (nextIndex >= submissions.length) {
         onRevealNext();
@@ -174,13 +225,13 @@ export const RevealView = ({
       return;
     }
 
-    // Rounds 2+: Batch reveal all at once
-    if (currentRound.revealedCount === 0 && submissions.length > 0) {
+    // Rounds 2+: Batch reveal all at once (for canvas/upload modes)
+    if (currentRound.revealedCount === 0 && submissions.length > 0 && !isSimpleMode) {
       setShowingBatchReveal(true);
     } else {
       onRevealNext();
     }
-  }, [currentRound.revealedCount, submissions.length, isMobile, isSpeakerOrHost, isFirstRound, onRevealNext]);
+  }, [currentRound.revealedCount, submissions.length, isMobile, isSpeakerOrHost, isFirstRound, onRevealNext, gameState.config.gameMode, showingHoldUpMoment]);
 
   // Handle dramatic reveal completion (round 1)
   const handleDramaticRevealComplete = useCallback(() => {
@@ -214,6 +265,47 @@ export const RevealView = ({
     }
   }, [submissions.length, onRevealNext]);
 
+  // Handle "Hold up your drawings!" completion for simple/paper mode
+  const handleHoldUpComplete = useCallback(() => {
+    setShowingHoldUpMoment(false);
+    // For simple mode, just reveal all at once (no submissions to show)
+    for (let i = currentRound.revealedCount; i < submissions.length; i++) {
+      onRevealNext();
+    }
+  }, [currentRound.revealedCount, submissions.length, onRevealNext]);
+
+  // Handle ranked vote selection
+  const handleToggleRankedPick = useCallback((playerId: string) => {
+    setRankedPicks(prev => {
+      if (prev.includes(playerId)) {
+        // Remove from picks
+        return prev.filter(id => id !== playerId);
+      } else if (prev.length < requiredPicks) {
+        // Add to picks
+        return [...prev, playerId];
+      }
+      return prev;
+    });
+  }, [requiredPicks]);
+
+  // Submit ranked vote
+  const handleSubmitRankedVote = useCallback(() => {
+    if (rankedPicks.length === requiredPicks) {
+      onCastRankedVote(rankedPicks);
+      setRankedPicks([]);
+    }
+  }, [rankedPicks, requiredPicks, onCastRankedVote]);
+
+  // Get rank badge for a player in current picks
+  const getRankBadge = (playerId: string): string | null => {
+    const index = rankedPicks.indexOf(playerId);
+    if (index === -1) return null;
+    if (index === 0) return '1st';
+    if (index === 1) return '2nd';
+    if (index === 2) return '3rd';
+    return null;
+  };
+
   // Handle skip for batch reveal
   const handleSkipBatchReveal = useCallback(() => {
     setShowingBatchReveal(false);
@@ -244,6 +336,43 @@ export const RevealView = ({
       score: s.score ?? scoringResults[s.playerId]?.score ?? 0,
     }));
   };
+
+  // Show "Hold up your drawings!" moment for simple/paper mode
+  if (showingHoldUpMoment && drawing) {
+    return (
+      <div className="container flex flex-col items-center justify-center" style={{ minHeight: '100vh' }}>
+        <div className="card text-center" style={{ maxWidth: '500px' }}>
+          <span className="badge badge-accent mb-3">Round {currentRound.roundNumber}</span>
+
+          <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>
+            Hold up your drawings!
+          </h1>
+
+          <p className="text-muted mb-4" style={{ fontSize: '1.2rem' }}>
+            Everyone show your paper drawings to the camera
+          </p>
+
+          <div className="mb-4">
+            <DrawingDisplay imageId={currentRound.imageId} size="medium" />
+            <p className="text-muted mt-2">The image was: <strong>{drawing.name}</strong></p>
+          </div>
+
+          {isSpeakerOrHost && (
+            <button
+              className="btn btn-primary btn-large"
+              onClick={handleHoldUpComplete}
+            >
+              Continue to Voting
+            </button>
+          )}
+
+          {!isSpeakerOrHost && (
+            <p className="text-muted">Waiting for host to continue...</p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // Show dramatic reveal sequence (round 1 only)
   if (showingDramaticReveal && currentDramaticSubmission && drawing) {
@@ -302,7 +431,151 @@ export const RevealView = ({
     );
   }
 
-  // Standard reveal grid view
+  // Simple mode (paper drawings): Show voting for players, not digital submissions
+  const isSimpleMode = gameState.config.gameMode === 'simple';
+
+  // Get list of players who can be voted for (everyone except speaker and self)
+  const votablePlayers = gameState.players.filter(
+    p => p.id !== currentRound.speakerId && p.id !== currentPlayer.id
+  );
+
+  if (isSimpleMode && (isVoting || isCompleted)) {
+    return (
+      <div className="container" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
+        <div className="text-center mb-4">
+          <span className="badge badge-accent mb-2">Round {currentRound.roundNumber}</span>
+          <h2 className="mb-1">
+            {isCompleted
+              ? 'Round Complete!'
+              : 'Vote for your favorites!'}
+          </h2>
+          {drawing && (
+            <p className="text-muted">
+              The image was: <strong>{drawing.name}</strong>
+            </p>
+          )}
+        </div>
+
+        {/* Original image */}
+        <div className="flex justify-center mb-4">
+          <div className="card text-center" style={{ width: '280px' }}>
+            <h4 className="mb-2">Original</h4>
+            <DrawingDisplay imageId={currentRound.imageId} size="medium" />
+          </div>
+        </div>
+
+        {/* Voting for players (simple mode) */}
+        {votingStyle !== 'none' && (
+          <div className="flex flex-wrap gap-2 justify-center mb-4">
+            {votablePlayers.map((player) => {
+              const points = voteCounts[player.id] || 0;
+              const isWinner = isCompleted && getWinners().includes(player.id);
+              const rankBadge = getRankBadge(player.id);
+              const isSelected = rankedPicks.includes(player.id);
+              const myRankedVote = currentRound.rankedVotes?.[currentPlayer.id];
+              const myRankForThis = myRankedVote?.indexOf(player.id) ?? -1;
+
+              return (
+                <div
+                  key={player.id}
+                  className="card text-center"
+                  style={{
+                    width: '180px',
+                    padding: '1rem',
+                    border: isWinner
+                      ? '2px solid var(--success)'
+                      : isSelected
+                        ? '2px solid var(--accent)'
+                        : undefined,
+                  }}
+                >
+                  <h4 className="mb-2">{player.name}</h4>
+
+                  {(isVoting || isCompleted) && (
+                    <p className="text-muted mb-2" style={{ fontSize: '0.9rem' }}>
+                      {points} pt{points !== 1 ? 's' : ''}
+                    </p>
+                  )}
+
+                  {isWinner && <span className="badge badge-success mb-2">Winner!</span>}
+                  {rankBadge && !hasVoted && <span className="badge badge-accent mb-2">{rankBadge}</span>}
+
+                  {isVoting && !hasVoted && (
+                    <button
+                      className={`btn btn-small ${isSelected ? 'btn-accent' : 'btn-primary'}`}
+                      onClick={() => handleToggleRankedPick(player.id)}
+                    >
+                      {isSelected ? 'Remove' : 'Select'}
+                    </button>
+                  )}
+
+                  {hasVoted && myRankForThis >= 0 && (
+                    <span className="badge badge-accent">
+                      Your {myRankForThis === 0 ? '1st' : myRankForThis === 1 ? '2nd' : '3rd'}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Voting controls */}
+        <div className="flex flex-col items-center gap-2">
+          {isVoting && votingStyle !== 'none' && !hasVoted && (
+            <div className="text-center">
+              <p className="text-muted mb-2">
+                Select your top {requiredPicks} ({rankedPicks.length}/{requiredPicks} selected)
+              </p>
+              {rankedPicks.length > 0 && (
+                <div className="flex gap-2 items-center mb-2 flex-wrap justify-center">
+                  {rankedPicks.map((id, i) => (
+                    <span key={id} className="badge badge-accent">
+                      {i === 0 ? '1st' : i === 1 ? '2nd' : '3rd'}: {getPlayerName(id)}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <button
+                className="btn btn-primary btn-large"
+                onClick={handleSubmitRankedVote}
+                disabled={rankedPicks.length !== requiredPicks}
+              >
+                Submit Votes
+              </button>
+            </div>
+          )}
+
+          {isVoting && hasVoted && (
+            <div className="text-center">
+              <p className="text-success mb-2">Your votes have been cast!</p>
+              {isSpeakerOrHost && (
+                <button className="btn btn-primary" onClick={onEndVoting}>
+                  End Voting
+                </button>
+              )}
+            </div>
+          )}
+
+          {isVoting && votingStyle === 'none' && isSpeakerOrHost && (
+            <button className="btn btn-primary btn-large" onClick={onEndVoting}>
+              Continue
+            </button>
+          )}
+
+          {isCompleted && isSpeakerOrHost && (
+            <button className="btn btn-primary btn-large" onClick={onNextRound}>
+              {currentRound.roundNumber < gameState.speakerOrder.length
+                ? 'Next Round'
+                : 'View Final Results'}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Standard reveal grid view (for canvas/upload modes with digital submissions)
   return (
     <div className="container" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
       <div className="text-center mb-4">
@@ -332,9 +605,15 @@ export const RevealView = ({
         {revealedSubmissions.map((submission, index) => {
           const playerName = getPlayerName(submission.playerId);
           const result = scoringResults[submission.playerId];
-          const votes = voteCounts[submission.playerId] || 0;
+          const points = voteCounts[submission.playerId] || 0;
           const isWinner = isCompleted && getWinners().includes(submission.playerId);
-          const myVote = currentRound.votes[currentPlayer.id] === submission.playerId;
+          const isOwnSubmission = submission.playerId === currentPlayer.id;
+          const rankBadge = getRankBadge(submission.playerId);
+          const isSelected = rankedPicks.includes(submission.playerId);
+
+          // Check if this player received any ranked votes from current player
+          const myRankedVote = currentRound.rankedVotes?.[currentPlayer.id];
+          const myRankForThis = myRankedVote?.indexOf(submission.playerId) ?? -1;
 
           return (
             <div
@@ -343,12 +622,17 @@ export const RevealView = ({
               style={{
                 width: '280px',
                 animationDelay: `${index * 0.1}s`,
-                border: isWinner ? '2px solid var(--success)' : undefined,
+                border: isWinner
+                  ? '2px solid var(--success)'
+                  : isSelected
+                    ? '2px solid var(--accent)'
+                    : undefined,
               }}
             >
               <div className="flex items-center justify-between mb-2">
                 <h4>{playerName}</h4>
                 {isWinner && <span className="badge badge-success">Winner!</span>}
+                {rankBadge && <span className="badge badge-accent">{rankBadge}</span>}
               </div>
 
               <div
@@ -394,21 +678,28 @@ export const RevealView = ({
                 </div>
               )}
 
-              {(isVoting || isCompleted) && (
+              {/* Show points in voting/completed phases */}
+              {(isVoting || isCompleted) && votingStyle !== 'none' && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted" style={{ fontSize: '0.9rem' }}>
-                    {votes} vote{votes !== 1 ? 's' : ''}
+                    {points} pt{points !== 1 ? 's' : ''}
                   </span>
-                  {isVoting && submission.playerId !== currentPlayer.id && !hasVoted && (
+
+                  {/* Ranked voting: Select button (not for own submission) */}
+                  {isVoting && !isOwnSubmission && !hasVoted && (
                     <button
-                      className="btn btn-primary btn-small"
-                      onClick={() => onCastVote(submission.playerId)}
+                      className={`btn btn-small ${isSelected ? 'btn-accent' : 'btn-primary'}`}
+                      onClick={() => handleToggleRankedPick(submission.playerId)}
                     >
-                      Vote
+                      {isSelected ? `${rankBadge} - Tap to remove` : `Select`}
                     </button>
                   )}
-                  {myVote && (
-                    <span className="badge badge-accent">Your vote</span>
+
+                  {/* Show what rank this player got from current player */}
+                  {hasVoted && myRankForThis >= 0 && (
+                    <span className="badge badge-accent">
+                      Your {myRankForThis === 0 ? '1st' : myRankForThis === 1 ? '2nd' : '3rd'}
+                    </span>
                   )}
                 </div>
               )}
@@ -421,9 +712,11 @@ export const RevealView = ({
       <div className="flex flex-col items-center gap-2">
         {!allRevealed && isSpeakerOrHost && (
           <button className="btn btn-primary btn-large" onClick={handleRevealNext}>
-            {isFirstRound
-              ? `Reveal Next Drawing (${currentRound.revealedCount + 1} of ${submissions.length})`
-              : 'Reveal All Drawings'}
+            {gameState.config.gameMode === 'simple'
+              ? 'Show "Hold Up Drawings!" Screen'
+              : isFirstRound
+                ? `Reveal Next Drawing (${currentRound.revealedCount + 1} of ${submissions.length})`
+                : 'Reveal All Drawings'}
           </button>
         )}
 
@@ -433,11 +726,11 @@ export const RevealView = ({
           </button>
         )}
 
-        {isVoting && (
+        {isVoting && votingStyle !== 'none' && (
           <div className="text-center">
             {hasVoted ? (
               <>
-                <p className="text-success mb-2">Your vote has been cast!</p>
+                <p className="text-success mb-2">Your votes have been cast!</p>
                 {isSpeakerOrHost && (
                   <button className="btn btn-primary" onClick={onEndVoting}>
                     End Voting
@@ -445,9 +738,37 @@ export const RevealView = ({
                 )}
               </>
             ) : (
-              <p className="text-muted">Select your favorite drawing above</p>
+              <div className="flex flex-col items-center gap-2">
+                <p className="text-muted">
+                  Select your top {requiredPicks} favorite drawings ({rankedPicks.length}/{requiredPicks} selected)
+                </p>
+                {rankedPicks.length > 0 && (
+                  <div className="flex gap-2 items-center mb-2">
+                    <span className="text-muted">Your picks:</span>
+                    {rankedPicks.map((id, i) => (
+                      <span key={id} className="badge badge-accent">
+                        {i === 0 ? '1st' : i === 1 ? '2nd' : '3rd'}: {getPlayerName(id)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <button
+                  className="btn btn-primary btn-large"
+                  onClick={handleSubmitRankedVote}
+                  disabled={rankedPicks.length !== requiredPicks}
+                >
+                  Submit Votes
+                </button>
+              </div>
             )}
           </div>
+        )}
+
+        {/* No voting mode - just show message */}
+        {isVoting && votingStyle === 'none' && isSpeakerOrHost && (
+          <button className="btn btn-primary btn-large" onClick={onEndVoting}>
+            Continue
+          </button>
         )}
 
         {isCompleted && isSpeakerOrHost && (

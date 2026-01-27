@@ -4,6 +4,12 @@ export type RoundStatus = 'describing' | 'uploading' | 'revealing' | 'voting' | 
 
 export type GameStatus = 'lobby' | 'playing' | 'finished';
 
+// Voting style based on group size
+// 'none' = no scoring/voting (recommended for 3 players)
+// 'top2' = pick top 2 (recommended for 4-5 players)
+// 'top3' = pick top 3 (recommended for 6+ players)
+export type VotingStyle = 'none' | 'top2' | 'top3';
+
 export interface Player {
   id: string;
   name: string;
@@ -23,12 +29,16 @@ export interface Submission {
   };
 }
 
+// Ranked vote: player's top picks in order (1st, 2nd, 3rd)
+export type RankedVote = string[]; // Array of playerIds in preference order
+
 export interface Round {
   roundNumber: number;
   speakerId: string;
   imageId: string;
   submissions: Submission[];
-  votes: Record<string, string>; // voterId -> voteeId
+  votes: Record<string, string>; // voterId -> voteeId (legacy single vote)
+  rankedVotes: Record<string, RankedVote>; // voterId -> [1st, 2nd, 3rd] picks
   revealedCount: number;
   status: RoundStatus;
 }
@@ -40,6 +50,7 @@ export interface GameConfig {
   gameMode: GameMode;
   scoringEnabled: boolean;
   votingEnabled: boolean;
+  votingStyle: VotingStyle; // 'none', 'top2', 'top3'
   difficulty: Difficulty;
 }
 

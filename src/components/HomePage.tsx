@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GameConfig, GameMode, Difficulty } from '../types';
+import { GameConfig, GameMode, Difficulty, VotingStyle } from '../types';
 import { useGame } from '../hooks/useGame';
 
 export const HomePage = () => {
@@ -14,11 +14,12 @@ export const HomePage = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   // Game configuration
-  const [gameMode, setGameMode] = useState<GameMode>('canvas');
+  const [gameMode, setGameMode] = useState<GameMode>('simple'); // Default to paper mode
   const [totalRounds, setTotalRounds] = useState<number | 'all'>('all');
-  const [scoringEnabled, setScoringEnabled] = useState(true);
-  const [votingEnabled, setVotingEnabled] = useState(false);
-  const [difficulty, setDifficulty] = useState<Difficulty>('all');
+  const [scoringEnabled, setScoringEnabled] = useState(false); // Disabled for simple mode
+  const [votingEnabled, setVotingEnabled] = useState(true); // Enable by default
+  const [votingStyle, setVotingStyle] = useState<VotingStyle>('top3'); // Will be adjusted in lobby based on player count
+  const [difficulty, setDifficulty] = useState<Difficulty>('medium'); // Default to medium per handoff doc
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +31,7 @@ export const HomePage = () => {
       gameMode,
       scoringEnabled: gameMode !== 'simple' && scoringEnabled,
       votingEnabled,
+      votingStyle,
       difficulty,
     };
 
@@ -120,24 +122,27 @@ export const HomePage = () => {
               <div className="mode-selector">
                 <div
                   className={`mode-option ${gameMode === 'simple' ? 'selected' : ''}`}
-                  onClick={() => setGameMode('simple')}
+                  onClick={() => {
+                    setGameMode('simple');
+                    setScoringEnabled(false);
+                  }}
                 >
-                  <h4>Simple</h4>
-                  <p>Draw on paper, hold up to webcam</p>
+                  <h4>Paper + Zoom</h4>
+                  <p>Draw on paper, hold up to camera (Recommended)</p>
                 </div>
                 <div
                   className={`mode-option ${gameMode === 'canvas' ? 'selected' : ''}`}
                   onClick={() => setGameMode('canvas')}
                 >
-                  <h4>Canvas</h4>
-                  <p>Draw in browser (Recommended)</p>
+                  <h4>Digital Canvas</h4>
+                  <p>Draw in browser with auto-scoring</p>
                 </div>
                 <div
                   className={`mode-option ${gameMode === 'upload' ? 'selected' : ''}`}
                   onClick={() => setGameMode('upload')}
                 >
                   <h4>Photo Upload</h4>
-                  <p>Draw on paper, photo via phone</p>
+                  <p>Draw on paper, upload photo via phone</p>
                 </div>
               </div>
             </div>
@@ -164,10 +169,10 @@ export const HomePage = () => {
                 value={difficulty}
                 onChange={(e) => setDifficulty(e.target.value as Difficulty)}
               >
-                <option value="all">Mixed (All difficulties)</option>
                 <option value="easy">Easy - Simple shapes</option>
-                <option value="medium">Medium - Recognizable objects</option>
+                <option value="medium">Medium - Recognizable objects (Recommended)</option>
                 <option value="hard">Hard - Detailed drawings</option>
+                <option value="all">Mixed (All difficulties)</option>
               </select>
             </div>
 
@@ -194,12 +199,19 @@ export const HomePage = () => {
                 <input
                   type="checkbox"
                   checked={votingEnabled}
-                  onChange={(e) => setVotingEnabled(e.target.checked)}
+                  onChange={(e) => {
+                    setVotingEnabled(e.target.checked);
+                    if (!e.target.checked) {
+                      setVotingStyle('none');
+                    } else {
+                      setVotingStyle('top3');
+                    }
+                  }}
                 />
                 <div>
                   <strong>Enable Voting</strong>
                   <p className="text-muted" style={{ fontSize: '0.8rem', margin: 0 }}>
-                    Vote for People's Choice after reveal
+                    Players rank their favorite drawings (points: 3/2/1)
                   </p>
                 </div>
               </label>
