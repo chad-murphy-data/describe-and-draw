@@ -140,9 +140,22 @@ const calculateOverlap = (
     }
   }
 
-  // IoU calculation
-  const union = originalPixels + submissionPixels - overlap;
-  return union > 0 ? overlap / union : 0;
+  // Modified scoring: focus on how much of the original was captured
+  // rather than strict IoU (which penalizes extra strokes too harshly)
+  if (originalPixels === 0) return 0;
+
+  // Base score: how much of the original drawing was covered
+  const coverageScore = overlap / originalPixels;
+
+  // Penalty for excess drawing (but mild - only penalize if WAY more strokes)
+  const excessRatio = submissionPixels / Math.max(originalPixels, 1);
+  const excessPenalty = excessRatio > 2 ? Math.min(0.3, (excessRatio - 2) * 0.1) : 0;
+
+  // Combine: coverage minus small penalty for huge excess
+  const rawScore = Math.max(0, coverageScore - excessPenalty);
+
+  // Apply a curve to make scores feel better (sqrt makes low scores higher)
+  return Math.pow(rawScore, 0.7);
 };
 
 // Find best alignment through iterative search

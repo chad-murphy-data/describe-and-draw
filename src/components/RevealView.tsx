@@ -37,16 +37,16 @@ export const RevealView = ({
   const isCompleted = currentRound.status === 'completed';
   const hasVoted = currentPlayer.id in currentRound.votes;
 
-  // Score submissions as they're revealed
+  // Score submissions as they're revealed - ONLY speaker/host scores to ensure consistency
   useEffect(() => {
-    if (!gameState.config.scoringEnabled || !drawing) {
+    if (!gameState.config.scoringEnabled || !drawing || !isSpeakerOrHost) {
       return;
     }
 
     const scoreNext = async () => {
-      // Find first unscored submission
+      // Find first submission that needs scoring (not already scored in Firebase)
       const unscored = revealedSubmissions.find(
-        s => !scoringResults[s.playerId] && currentlyScoring !== s.playerId
+        s => s.score === undefined && !scoringResults[s.playerId] && currentlyScoring !== s.playerId
       );
 
       if (!unscored) return;
@@ -65,7 +65,7 @@ export const RevealView = ({
     };
 
     scoreNext();
-  }, [revealedSubmissions.length, drawing, gameState.config.scoringEnabled, scoringResults, currentlyScoring, onUpdateScore]);
+  }, [revealedSubmissions.length, drawing, gameState.config.scoringEnabled, scoringResults, currentlyScoring, onUpdateScore, isSpeakerOrHost]);
 
   // Calculate vote counts
   const voteCounts: Record<string, number> = {};
