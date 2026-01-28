@@ -236,10 +236,14 @@ export const EndGameView = ({ gameState, currentPlayer, onPlayAgain, onLeave }: 
 
       {/* Actions */}
       <div className="flex flex-col items-center gap-2">
-        {currentPlayer.isHost && (
+        {currentPlayer.isHost ? (
           <button className="btn btn-primary btn-large" onClick={onPlayAgain}>
             Play Again (Same Players)
           </button>
+        ) : (
+          <p className="text-muted text-center">
+            Waiting for host to start a new game...
+          </p>
         )}
         <button className="btn btn-secondary" onClick={onLeave}>
           Leave Game

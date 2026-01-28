@@ -125,6 +125,8 @@ export const HomePage = () => {
                   onClick={() => {
                     setGameMode('simple');
                     setScoringEnabled(false);
+                    setVotingEnabled(true); // Enable voting by default for paper mode
+                    setVotingStyle('top3');
                   }}
                 >
                   <h4>Paper + Zoom</h4>
@@ -132,7 +134,12 @@ export const HomePage = () => {
                 </div>
                 <div
                   className={`mode-option ${gameMode === 'canvas' ? 'selected' : ''}`}
-                  onClick={() => setGameMode('canvas')}
+                  onClick={() => {
+                    setGameMode('canvas');
+                    setScoringEnabled(true); // Enable scoring by default for canvas mode
+                    setVotingEnabled(false); // Disable voting by default for canvas mode (scoring is the main feature)
+                    setVotingStyle('none');
+                  }}
                 >
                   <h4>Digital Canvas</h4>
                   <p>Draw in browser with auto-scoring</p>

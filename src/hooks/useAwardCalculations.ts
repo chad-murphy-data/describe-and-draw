@@ -198,10 +198,12 @@ export const useAwardCalculations = (gameState: GameState): AwardResults => {
     }
 
     // 2. Communication Champion - Best describer
-    const communicator = findWinner(
-      (a, b) => b.avgScoreAsDescriber - a.avgScoreAsDescriber,
-      s => s.roundsAsDescriber > 0
-    );
+    // Note: Don't use findWinner here since describing skill is independent of drawing skill
+    // We want the actual best describer, not just the best among non-podium players
+    const describerCandidates = allStats
+      .filter(s => s.roundsAsDescriber > 0 && !awardedPlayerIds.has(s.playerId))
+      .sort((a, b) => b.avgScoreAsDescriber - a.avgScoreAsDescriber);
+    const communicator = describerCandidates[0] || null;
     if (communicator && communicator.avgScoreAsDescriber > 0) {
       awards.push({
         id: 'communicator',
