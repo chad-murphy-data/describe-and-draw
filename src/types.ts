@@ -1,6 +1,6 @@
-export type GameMode = 'simple' | 'canvas' | 'upload';
+export type GameMode = 'simple' | 'canvas';
 
-export type RoundStatus = 'describing' | 'uploading' | 'revealing' | 'voting' | 'completed';
+export type RoundStatus = 'describing' | 'revealing' | 'voting' | 'completed';
 
 export type GameStatus = 'lobby' | 'playing' | 'finished';
 

@@ -1,6 +1,5 @@
 import { GameState, Player, Round } from '../types';
 import { DrawingCanvas } from './DrawingCanvas';
-import { QRUpload } from './QRUpload';
 
 interface DrawerViewProps {
   gameState: GameState;
@@ -45,78 +44,13 @@ export const DrawerView = ({ gameState, currentRound, currentPlayer, onSubmitDra
         <p className="text-muted">
           {gameState.config.gameMode === 'canvas'
             ? 'Draw what you hear in the canvas below'
-            : gameState.config.gameMode === 'upload'
-              ? 'Draw on paper, then upload a photo'
-              : 'Draw on paper and hold up to your webcam'}
+            : 'Draw on paper and hold up to your webcam'}
         </p>
       </div>
 
       {gameState.config.gameMode === 'canvas' && (
         <div className="card" style={{ maxWidth: '520px', width: '100%' }}>
           <DrawingCanvas onSubmit={onSubmitDrawing} />
-        </div>
-      )}
-
-      {gameState.config.gameMode === 'upload' && (
-        <div className="card text-center" style={{ maxWidth: '400px', width: '100%' }}>
-          <h3 className="mb-3">Upload your drawing</h3>
-          <QRUpload
-            gameCode={gameState.gameCode}
-            playerId={currentPlayer.id}
-            roundNumber={currentRound.roundNumber}
-          />
-          <div className="mt-4">
-            <p className="text-muted" style={{ fontSize: '0.85rem' }}>
-              Or drag & drop an image below:
-            </p>
-            <div
-              className="card card-dark mt-2"
-              style={{
-                border: '2px dashed var(--border)',
-                padding: '2rem',
-                cursor: 'pointer',
-              }}
-              onClick={() => {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = 'image/*';
-                input.onchange = (e) => {
-                  const file = (e.target as HTMLInputElement).files?.[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                      const imageData = e.target?.result as string;
-                      onSubmitDrawing(imageData);
-                    };
-                    reader.readAsDataURL(file);
-                  }
-                };
-                input.click();
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.currentTarget.style.borderColor = 'var(--accent)';
-              }}
-              onDragLeave={(e) => {
-                e.currentTarget.style.borderColor = 'var(--border)';
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                e.currentTarget.style.borderColor = 'var(--border)';
-                const file = e.dataTransfer.files[0];
-                if (file && file.type.startsWith('image/')) {
-                  const reader = new FileReader();
-                  reader.onload = (e) => {
-                    const imageData = e.target?.result as string;
-                    onSubmitDrawing(imageData);
-                  };
-                  reader.readAsDataURL(file);
-                }
-              }}
-            >
-              <p className="text-muted">Click or drag image here</p>
-            </div>
-          </div>
         </div>
       )}
 

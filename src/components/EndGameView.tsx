@@ -73,7 +73,7 @@ export const EndGameView = ({ gameState, currentPlayer, onPlayAgain, onLeave }: 
   });
 
   gameState.rounds.forEach(round => {
-    // Count scores from digital submissions (canvas/upload modes)
+    // Count scores from digital submissions (canvas mode)
     round.submissions.forEach(submission => {
       if (playerScores[submission.playerId]) {
         playerScores[submission.playerId].totalScore += submission.score || 0;

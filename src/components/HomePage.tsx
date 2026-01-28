@@ -137,13 +137,6 @@ export const HomePage = () => {
                   <h4>Digital Canvas</h4>
                   <p>Draw in browser with auto-scoring</p>
                 </div>
-                <div
-                  className={`mode-option ${gameMode === 'upload' ? 'selected' : ''}`}
-                  onClick={() => setGameMode('upload')}
-                >
-                  <h4>Photo Upload</h4>
-                  <p>Draw on paper, upload photo via phone</p>
-                </div>
               </div>
             </div>
 

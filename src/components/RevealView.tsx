@@ -213,7 +213,7 @@ export const RevealView = ({
       return;
     }
 
-    // Round 1: Dramatic per-drawing reveal (for canvas/upload modes)
+    // Round 1: Dramatic per-drawing reveal (for canvas mode)
     if (isFirstRound && !isSimpleMode) {
       const nextIndex = currentRound.revealedCount;
       if (nextIndex >= submissions.length) {
@@ -225,7 +225,7 @@ export const RevealView = ({
       return;
     }
 
-    // Rounds 2+: Batch reveal all at once (for canvas/upload modes)
+    // Rounds 2+: Batch reveal all at once (for canvas mode)
     if (currentRound.revealedCount === 0 && submissions.length > 0 && !isSimpleMode) {
       setShowingBatchReveal(true);
     } else {
@@ -575,7 +575,7 @@ export const RevealView = ({
     );
   }
 
-  // Standard reveal grid view (for canvas/upload modes with digital submissions)
+  // Standard reveal grid view (for canvas mode with digital submissions)
   return (
     <div className="container" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
       <div className="text-center mb-4">

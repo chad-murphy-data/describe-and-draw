@@ -60,11 +60,9 @@ export const LobbyPage = ({ gameState, currentPlayer, onStartGame, onLeave, onUp
   const getModeDescription = () => {
     switch (gameState.config.gameMode) {
       case 'simple':
-        return 'Simple Mode - Draw on paper, hold up to webcam';
+        return 'Paper Mode - Draw on paper, hold up to webcam';
       case 'canvas':
         return 'Canvas Mode - Draw directly in the browser';
-      case 'upload':
-        return 'Photo Upload Mode - Draw on paper, upload via phone';
     }
   };
 
