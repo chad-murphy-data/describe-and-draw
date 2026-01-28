@@ -6,6 +6,8 @@ import { SpeakerView } from './SpeakerView';
 import { DrawerView } from './DrawerView';
 import { RevealView } from './RevealView';
 import { EndGameView } from './EndGameView';
+import { CategoryVotingView } from './CategoryVotingView';
+import { CategoryCeremonyView } from './CategoryCeremonyView';
 
 export const GamePage = () => {
   const { gameCode } = useParams<{ gameCode: string }>();
@@ -22,11 +24,14 @@ export const GamePage = () => {
     revealNext,
     castVote,
     castRankedVote,
+    castCategoryVotes,
     endVoting,
     nextRound,
     leaveGame,
     resetToLobby,
     updateConfig,
+    startCeremony,
+    endCeremony,
     isSpeaker,
   } = useGame(gameCode);
 
@@ -65,6 +70,30 @@ export const GamePage = () => {
         onStartGame={startGame}
         onLeave={handleLeave}
         onUpdateConfig={updateConfig}
+      />
+    );
+  }
+
+  // Category voting phase (paper mode)
+  if (gameState.status === 'voting') {
+    return (
+      <CategoryVotingView
+        gameState={gameState}
+        currentPlayer={currentPlayer}
+        onSubmitVotes={castCategoryVotes}
+        onStartCeremony={startCeremony}
+      />
+    );
+  }
+
+  // Awards ceremony phase
+  if (gameState.status === 'ceremony') {
+    return (
+      <CategoryCeremonyView
+        gameState={gameState}
+        currentPlayer={currentPlayer}
+        onEndCeremony={endCeremony}
+        onLeave={handleLeave}
       />
     );
   }

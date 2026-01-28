@@ -53,6 +53,7 @@ export const RevealView = ({
   const [dramaticRevealIndex, setDramaticRevealIndex] = useState(-1);
   const [pendingScore, setPendingScore] = useState<{ playerId: string; score: number; alignmentInfo: Submission['alignmentInfo'] } | null>(null);
   const [showingBatchReveal, setShowingBatchReveal] = useState(false);
+  const [showingHostPrompt, setShowingHostPrompt] = useState(false);
   const [showingHoldUpMoment, setShowingHoldUpMoment] = useState(false);
   const [rankedPicks, setRankedPicks] = useState<string[]>([]);
 
@@ -198,10 +199,17 @@ export const RevealView = ({
   const handleRevealNext = useCallback(() => {
     const isSimpleMode = gameState.config.gameMode === 'simple';
 
-    // Simple mode: Show "Hold up your drawings!" moment
-    if (isSimpleMode && currentRound.revealedCount === 0 && !showingHoldUpMoment) {
-      setShowingHoldUpMoment(true);
-      return;
+    // Simple mode: First show host screenshare prompt, then hold up drawings
+    if (isSimpleMode && currentRound.revealedCount === 0) {
+      if (!showingHostPrompt && !showingHoldUpMoment) {
+        setShowingHostPrompt(true);
+        return;
+      }
+      if (showingHostPrompt && !showingHoldUpMoment) {
+        setShowingHostPrompt(false);
+        setShowingHoldUpMoment(true);
+        return;
+      }
     }
 
     // On mobile or for non-hosts, skip all animations
@@ -231,7 +239,7 @@ export const RevealView = ({
     } else {
       onRevealNext();
     }
-  }, [currentRound.revealedCount, submissions.length, isMobile, isSpeakerOrHost, isFirstRound, onRevealNext, gameState.config.gameMode, showingHoldUpMoment]);
+  }, [currentRound.revealedCount, submissions.length, isMobile, isSpeakerOrHost, isFirstRound, onRevealNext, gameState.config.gameMode, showingHoldUpMoment, showingHostPrompt]);
 
   // Handle dramatic reveal completion (round 1)
   const handleDramaticRevealComplete = useCallback(() => {
@@ -337,6 +345,36 @@ export const RevealView = ({
     }));
   };
 
+  // Show host screenshare prompt (simple mode)
+  if (showingHostPrompt) {
+    return (
+      <div className="container flex flex-col items-center justify-center" style={{ minHeight: '100vh' }}>
+        <div className="card text-center" style={{ maxWidth: '500px' }}>
+          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🖥️</div>
+          <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>
+            Host, share your screen!
+          </h1>
+          <p className="text-muted mb-4" style={{ fontSize: '1.1rem' }}>
+            Everyone should see your screen before the big reveal
+          </p>
+
+          {isSpeakerOrHost && (
+            <button
+              className="btn btn-primary btn-large"
+              onClick={handleRevealNext}
+            >
+              Reveal Original Image
+            </button>
+          )}
+
+          {!isSpeakerOrHost && (
+            <p className="text-muted">Waiting for host...</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // Show "Hold up your drawings!" moment for simple/paper mode
   if (showingHoldUpMoment && drawing) {
     return (
@@ -362,7 +400,7 @@ export const RevealView = ({
               className="btn btn-primary btn-large"
               onClick={handleHoldUpComplete}
             >
-              Continue to Voting
+              {gameState.config.votingStyle !== 'none' ? 'Continue to Voting' : 'Next Round'}
             </button>
           )}
 

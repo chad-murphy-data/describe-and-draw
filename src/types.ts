@@ -2,13 +2,35 @@ export type GameMode = 'simple' | 'canvas';
 
 export type RoundStatus = 'describing' | 'revealing' | 'voting' | 'completed';
 
-export type GameStatus = 'lobby' | 'playing' | 'finished';
+// 'voting' = end-of-game category voting phase (paper mode)
+// 'ceremony' = awards ceremony display phase
+export type GameStatus = 'lobby' | 'playing' | 'voting' | 'ceremony' | 'finished';
 
 // Voting style based on group size
-// 'none' = no scoring/voting (recommended for 3 players)
+// 'none' = no scoring/voting (recommended for 2-3 players)
 // 'top2' = pick top 2 (recommended for 4-5 players)
 // 'top3' = pick top 3 (recommended for 6+ players)
-export type VotingStyle = 'none' | 'top2' | 'top3';
+// 'categories' = category-based voting for paper mode (4+ players)
+export type VotingStyle = 'none' | 'top2' | 'top3' | 'categories';
+
+// Award categories for paper mode voting
+export type AwardCategory =
+  | 'michelangelo'    // 🎨 Best Drawing
+  | 'happyAccident'   // 😂 Funniest
+  | 'scenicRoute'     // 🛤️ Most Creative
+  | 'translator'      // 🗣️ Best Communicator
+  | 'blamePrompt';    // 🎯 Hardest Round
+
+export interface AwardInfo {
+  id: AwardCategory;
+  emoji: string;
+  name: string;
+  description: string;
+  votesFor: 'player' | 'round';
+}
+
+// Category votes: voterId -> { categoryId -> playerId or roundNumber }
+export type CategoryVotes = Record<AwardCategory, string>;
 
 export interface Player {
   id: string;
@@ -43,6 +65,9 @@ export interface Round {
   status: RoundStatus;
 }
 
+// End-of-game category votes (paper mode)
+export type EndGameVotes = Record<string, CategoryVotes>; // voterId -> category votes
+
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'all';
 
 export interface GameConfig {
@@ -64,6 +89,8 @@ export interface GameState {
   rounds: Round[];
   status: GameStatus;
   lastUpdated: number;
+  // End-of-game category votes (paper mode)
+  categoryVotes?: EndGameVotes;
 }
 
 export interface DrawingImage {

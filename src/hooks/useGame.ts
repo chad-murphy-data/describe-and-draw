@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { GameState, Player, GameConfig, Submission, Round, VotingStyle, Difficulty } from '../types';
+import { GameState, Player, GameConfig, Submission, Round, VotingStyle, Difficulty, CategoryVotes } from '../types';
 import { getPlayerSession, savePlayerSession, clearPlayerSession } from '../utils/storage';
 import { saveGameStateFirebase, getGameStateFirebase, subscribeToGame } from '../utils/firebase';
 import { generateGameCode, generatePlayerId, shuffleArray } from '../utils/gameCode';
@@ -341,10 +341,19 @@ export const useGame = (initialGameCode?: string) => {
 
     // Check if game is over
     if (nextRoundNumber > gameState.speakerOrder.length) {
-      updateGameState(prev => ({
-        ...prev,
-        status: 'finished',
-      }));
+      // If using category voting, go to voting phase first
+      if (gameState.config.votingStyle === 'categories') {
+        updateGameState(prev => ({
+          ...prev,
+          status: 'voting',
+          categoryVotes: {}, // Initialize empty votes
+        }));
+      } else {
+        updateGameState(prev => ({
+          ...prev,
+          status: 'finished',
+        }));
+      }
       return;
     }
 
@@ -399,6 +408,7 @@ export const useGame = (initialGameCode?: string) => {
       currentRound: 0,
       speakerOrder: [],
       rounds: [],
+      categoryVotes: undefined,
     }));
   }, [gameState, currentPlayer, updateGameState]);
 
@@ -433,6 +443,41 @@ export const useGame = (initialGameCode?: string) => {
     }));
   }, [gameState, currentPlayer, updateGameState]);
 
+  // Cast category votes (for paper mode end-of-game voting)
+  const castCategoryVotes = useCallback((votes: CategoryVotes) => {
+    if (!gameState || !currentPlayer) return;
+
+    updateGameState(prev => ({
+      ...prev,
+      categoryVotes: {
+        ...prev.categoryVotes,
+        [currentPlayer.id]: votes,
+      },
+    }));
+  }, [gameState, currentPlayer, updateGameState]);
+
+  // Start the awards ceremony (host only)
+  const startCeremony = useCallback(() => {
+    if (!gameState || !currentPlayer?.isHost) return;
+    if (gameState.status !== 'voting') return;
+
+    updateGameState(prev => ({
+      ...prev,
+      status: 'ceremony',
+    }));
+  }, [gameState, currentPlayer, updateGameState]);
+
+  // End the ceremony and finish game
+  const endCeremony = useCallback(() => {
+    if (!gameState || !currentPlayer?.isHost) return;
+    if (gameState.status !== 'ceremony') return;
+
+    updateGameState(prev => ({
+      ...prev,
+      status: 'finished',
+    }));
+  }, [gameState, currentPlayer, updateGameState]);
+
   return {
     gameState,
     currentPlayer,
@@ -448,11 +493,14 @@ export const useGame = (initialGameCode?: string) => {
     revealNext,
     castVote,
     castRankedVote,
+    castCategoryVotes,
     endVoting,
     nextRound,
     leaveGame,
     resetToLobby,
     updateConfig,
+    startCeremony,
+    endCeremony,
     isHost: currentPlayer?.isHost ?? false,
     isSpeaker: gameState && gameState.currentRound > 0
       ? gameState.rounds[gameState.currentRound - 1]?.speakerId === currentPlayer?.id
