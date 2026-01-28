@@ -4,6 +4,7 @@ import confetti from 'canvas-confetti';
 import { Submission } from '../../types';
 import { DrawingDisplay } from '../DrawingDisplay';
 import { SimilarityScore } from './SimilarityScore';
+import { CurtainReveal } from './CurtainReveal';
 import { useSoundEffects } from '../../hooks/useSoundEffects';
 
 interface BatchRevealProps {
@@ -16,7 +17,8 @@ interface BatchRevealProps {
   isHost: boolean;
 }
 
-const REVEAL_DURATION = 5000; // Time before auto-advancing (enough for score animations)
+const CURTAIN_OPEN_DELAY = 800; // Time before curtains start opening
+const REVEAL_DURATION = 6000; // Time before auto-advancing (enough for curtains + score animations)
 
 export const BatchReveal = ({
   imageId,
@@ -27,21 +29,28 @@ export const BatchReveal = ({
   onSkip,
   isHost,
 }: BatchRevealProps) => {
-  const [revealed, setRevealed] = useState(false);
+  const [curtainsOpen, setCurtainsOpen] = useState(false);
+  const [cardsVisible, setCardsVisible] = useState(false);
   const { playCurtain, playCelebration } = useSoundEffects();
 
   useEffect(() => {
-    // Reveal all cards at once after a brief moment
-    const revealTimer = setTimeout(() => {
-      setRevealed(true);
-      playCurtain();
+    // First show the cards (with curtains closed)
+    const showCardsTimer = setTimeout(() => {
+      setCardsVisible(true);
     }, 300);
+
+    // Then open all curtains simultaneously
+    const curtainTimer = setTimeout(() => {
+      setCurtainsOpen(true);
+      playCurtain();
+    }, CURTAIN_OPEN_DELAY);
 
     // Auto-complete after duration
     const completeTimer = setTimeout(onComplete, REVEAL_DURATION);
 
     return () => {
-      clearTimeout(revealTimer);
+      clearTimeout(showCardsTimer);
+      clearTimeout(curtainTimer);
       clearTimeout(completeTimer);
     };
   }, [onComplete, playCurtain]);
@@ -81,7 +90,7 @@ export const BatchReveal = ({
         <DrawingDisplay imageId={imageId} size="medium" />
       </motion.div>
 
-      {/* All submissions in a grid - each with its own score animation */}
+      {/* All submissions in a grid - each with curtain reveal */}
       <div className="batch-reveal-grid">
         {submissions.map((submission, index) => {
           const score = submission.score ?? 0;
@@ -90,31 +99,30 @@ export const BatchReveal = ({
           return (
             <motion.div
               key={submission.playerId}
-              className={`batch-reveal-card ${isHighScore ? 'high-score' : ''}`}
-              initial={{ opacity: 0, scale: 0.8, y: 20 }}
-              animate={revealed ? {
+              className={`batch-reveal-card ${isHighScore && curtainsOpen ? 'high-score' : ''}`}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={cardsVisible ? {
                 opacity: 1,
                 scale: 1,
-                y: 0,
               } : {}}
               transition={{
-                delay: index * 0.15,
-                duration: 0.4,
-                type: 'spring',
-                stiffness: 200,
+                delay: index * 0.1,
+                duration: 0.3,
               }}
             >
               <div className="batch-reveal-header">
                 <span className="batch-reveal-name">{getPlayerName(submission.playerId)}</span>
               </div>
-              <div className="batch-reveal-image">
-                <img
-                  src={submission.imageData}
-                  alt={`Drawing by ${getPlayerName(submission.playerId)}`}
-                />
-              </div>
-              {/* Each card gets its own animated score */}
-              {scoringEnabled && revealed && (
+              <CurtainReveal isOpen={curtainsOpen}>
+                <div className="batch-reveal-image">
+                  <img
+                    src={submission.imageData}
+                    alt={`Drawing by ${getPlayerName(submission.playerId)}`}
+                  />
+                </div>
+              </CurtainReveal>
+              {/* Each card gets its own animated score - shows after curtains open */}
+              {scoringEnabled && curtainsOpen && (
                 <div className="batch-reveal-score-container">
                   <SimilarityScore
                     finalScore={score}
