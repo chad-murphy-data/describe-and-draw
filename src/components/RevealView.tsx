@@ -215,7 +215,25 @@ export const RevealView = ({
         return;
       }
 
-      // Canvas mode: Skip to mobile handling or animation reveals below
+      // Canvas mode: Start the appropriate reveal animation
+      // On mobile or for non-hosts, skip animations
+      if (isMobile || !isSpeakerOrHost) {
+        for (let i = currentRound.revealedCount; i < submissions.length; i++) {
+          onRevealNext();
+        }
+        return;
+      }
+
+      // Round 1: Dramatic per-drawing reveal
+      if (isFirstRound) {
+        setDramaticRevealIndex(0);
+        setShowingDramaticReveal(true);
+        return;
+      }
+
+      // Rounds 2+: Batch reveal all at once
+      setShowingBatchReveal(true);
+      return;
     }
 
     // On mobile or for non-hosts, skip all animations
