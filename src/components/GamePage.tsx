@@ -128,6 +128,7 @@ export const GamePage = () => {
       currentRound={currentRound}
       currentPlayer={currentPlayer}
       onSubmitDrawing={submitDrawing}
+      onStartReveal={startReveal}
     />
   );
 };

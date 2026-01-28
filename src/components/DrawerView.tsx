@@ -6,9 +6,10 @@ interface DrawerViewProps {
   currentRound: Round;
   currentPlayer: Player;
   onSubmitDrawing: (imageData: string) => void;
+  onStartReveal?: () => void;
 }
 
-export const DrawerView = ({ gameState, currentRound, currentPlayer, onSubmitDrawing }: DrawerViewProps) => {
+export const DrawerView = ({ gameState, currentRound, currentPlayer, onSubmitDrawing, onStartReveal }: DrawerViewProps) => {
   const speaker = gameState.players.find(p => p.id === currentRound.speakerId);
   const speakerName = speaker?.name || 'Speaker';
 
@@ -61,9 +62,19 @@ export const DrawerView = ({ gameState, currentRound, currentPlayer, onSubmitDra
           <p className="text-muted mb-3">
             When {speakerName} says "pencils down", hold your drawing up to your webcam!
           </p>
-          <p className="text-muted" style={{ fontSize: '0.8rem' }}>
-            In Simple Mode, there's no digital submission - just share your drawing on camera.
-          </p>
+          {currentPlayer.isHost && onStartReveal && (
+            <button
+              className="btn btn-primary btn-large btn-full mt-3"
+              onClick={onStartReveal}
+            >
+              Pencils Down! 🎨
+            </button>
+          )}
+          {!currentPlayer.isHost && (
+            <p className="text-muted" style={{ fontSize: '0.8rem' }}>
+              Waiting for {speakerName} to say "pencils down"...
+            </p>
+          )}
         </div>
       )}
 
