@@ -16,6 +16,9 @@ export const SpeakerView = ({ gameState, currentRound, onStartReveal }: SpeakerV
     <div className="container flex flex-col items-center" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
       <div className="text-center mb-3">
         <span className="badge badge-accent mb-2">Round {currentRound.roundNumber}</span>
+        <span className="badge" style={{ marginLeft: '0.5rem', background: 'var(--bg-tertiary)' }}>
+          {gameState.config.gameMode === 'simple' ? 'Paper Mode' : 'Canvas Mode'}
+        </span>
         <h2 className="mb-1">You are the Speaker!</h2>
         <p className="text-muted">Describe this image to your team - but don't say what it is!</p>
       </div>
@@ -34,52 +37,54 @@ export const SpeakerView = ({ gameState, currentRound, onStartReveal }: SpeakerV
         </ul>
       </div>
 
-      {gameState.config.gameMode === 'simple' ? (
-        <div className="card text-center" style={{ maxWidth: '400px', width: '100%' }}>
-          <p className="text-muted mb-3">
-            When everyone is done drawing, click the button below to reveal!
-          </p>
-          <button
-            className="btn btn-primary btn-large btn-full"
-            onClick={onStartReveal}
-          >
-            Pencils Down! 🎨
-          </button>
-        </div>
-      ) : (
-        <div className="card text-center" style={{ maxWidth: '400px', width: '100%' }}>
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <span style={{ fontSize: '1.5rem' }}>
-              {submissionCount} / {totalDrawers}
-            </span>
-            <span className="text-muted">drawings received</span>
-          </div>
-
-          {allSubmitted ? (
-            <div className="mb-2">
-              <span className="badge badge-success">All drawings submitted!</span>
-            </div>
-          ) : (
-            <div className="mb-2">
-              <span className="badge badge-warning">Waiting for drawings...</span>
-            </div>
-          )}
-
-          <button
-            className="btn btn-primary btn-large btn-full"
-            onClick={onStartReveal}
-            disabled={submissionCount === 0}
-          >
-            {submissionCount === 0 ? 'Waiting for first drawing...' : 'Reveal Drawings'}
-          </button>
-
-          {!allSubmitted && submissionCount > 0 && (
-            <p className="text-muted mt-2" style={{ fontSize: '0.8rem' }}>
-              You can reveal now or wait for more submissions
+      <div className="card text-center" style={{ maxWidth: '400px', width: '100%' }}>
+        {gameState.config.gameMode === 'simple' ? (
+          <>
+            <p className="text-muted mb-3">
+              When everyone is done drawing, click the button below to reveal!
             </p>
-          )}
-        </div>
-      )}
+            <button
+              className="btn btn-primary btn-large btn-full"
+              onClick={onStartReveal}
+            >
+              Pencils Down! 🎨
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span style={{ fontSize: '1.5rem' }}>
+                {submissionCount} / {totalDrawers}
+              </span>
+              <span className="text-muted">drawings received</span>
+            </div>
+
+            {allSubmitted ? (
+              <div className="mb-2">
+                <span className="badge badge-success">All drawings submitted!</span>
+              </div>
+            ) : (
+              <div className="mb-2">
+                <span className="badge badge-warning">Waiting for drawings...</span>
+              </div>
+            )}
+
+            <button
+              className="btn btn-primary btn-large btn-full"
+              onClick={onStartReveal}
+              disabled={submissionCount === 0}
+            >
+              {submissionCount === 0 ? 'Waiting for first drawing...' : 'Reveal Drawings'}
+            </button>
+
+            {!allSubmitted && submissionCount > 0 && (
+              <p className="text-muted mt-2" style={{ fontSize: '0.8rem' }}>
+                You can reveal now or wait for more submissions
+              </p>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 };

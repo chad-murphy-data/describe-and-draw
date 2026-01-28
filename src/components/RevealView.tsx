@@ -522,7 +522,7 @@ export const RevealView = ({
 
         {/* Voting controls */}
         <div className="flex flex-col items-center gap-2">
-          {isVoting && votingStyle !== 'none' && !hasVoted && (
+          {isVoting && votingStyle !== 'none' && !hasVoted && votablePlayers.length > 0 && (
             <div className="text-center">
               <p className="text-muted mb-2">
                 Select your top {requiredPicks} ({rankedPicks.length}/{requiredPicks} selected)
@@ -549,17 +549,13 @@ export const RevealView = ({
           {isVoting && hasVoted && (
             <div className="text-center">
               <p className="text-success mb-2">Your votes have been cast!</p>
-              {isSpeakerOrHost && (
-                <button className="btn btn-primary" onClick={onEndVoting}>
-                  End Voting
-                </button>
-              )}
             </div>
           )}
 
-          {isVoting && votingStyle === 'none' && isSpeakerOrHost && (
+          {/* Speaker/Host can always end voting */}
+          {isVoting && isSpeakerOrHost && (
             <button className="btn btn-primary btn-large" onClick={onEndVoting}>
-              Continue
+              {votingStyle === 'none' ? 'Continue' : 'End Voting'}
             </button>
           )}
 
@@ -729,14 +725,7 @@ export const RevealView = ({
         {isVoting && votingStyle !== 'none' && (
           <div className="text-center">
             {hasVoted ? (
-              <>
-                <p className="text-success mb-2">Your votes have been cast!</p>
-                {isSpeakerOrHost && (
-                  <button className="btn btn-primary" onClick={onEndVoting}>
-                    End Voting
-                  </button>
-                )}
-              </>
+              <p className="text-success mb-2">Your votes have been cast!</p>
             ) : (
               <div className="flex flex-col items-center gap-2">
                 <p className="text-muted">
@@ -764,10 +753,10 @@ export const RevealView = ({
           </div>
         )}
 
-        {/* No voting mode - just show message */}
-        {isVoting && votingStyle === 'none' && isSpeakerOrHost && (
+        {/* Speaker/Host can always end voting */}
+        {isVoting && isSpeakerOrHost && (
           <button className="btn btn-primary btn-large" onClick={onEndVoting}>
-            Continue
+            {votingStyle === 'none' ? 'Continue' : 'End Voting'}
           </button>
         )}
 
