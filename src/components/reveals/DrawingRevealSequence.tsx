@@ -69,19 +69,34 @@ export const DrawingRevealSequence = ({
 
     // Handle phase-specific effects
     if (phase === 'reveal') {
-      // Start curtain and score animation simultaneously
-      setCurtainOpen(true);
-      playCurtain();
+      // Small delay to ensure curtains render before animating open
+      // This gives AnimatePresence time to mount the curtain elements
+      const curtainTimer = setTimeout(() => {
+        setCurtainOpen(true);
+        playCurtain();
 
-      if (scoringEnabled) {
-        const drumrollStop = playDrumroll();
-        if (drumrollStop) {
-          setStopDrumroll(() => drumrollStop);
+        if (scoringEnabled) {
+          const drumrollStop = playDrumroll();
+          if (drumrollStop) {
+            setStopDrumroll(() => drumrollStop);
+          }
         }
+      }, 150);
+
+      // Auto-advance phases
+      const duration = PHASE_DURATIONS[phase];
+      if (duration > 0) {
+        const timer = setTimeout(advancePhase, duration);
+        return () => {
+          clearTimeout(curtainTimer);
+          clearTimeout(timer);
+        };
       }
+
+      return () => clearTimeout(curtainTimer);
     }
 
-    // Auto-advance phases
+    // Auto-advance phases (for non-reveal phases)
     const duration = PHASE_DURATIONS[phase];
     if (duration > 0) {
       const timer = setTimeout(advancePhase, duration);
