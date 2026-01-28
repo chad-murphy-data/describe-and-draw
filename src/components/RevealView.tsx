@@ -199,17 +199,23 @@ export const RevealView = ({
   const handleRevealNext = useCallback(() => {
     const isSimpleMode = gameState.config.gameMode === 'simple';
 
-    // Simple mode: First show host screenshare prompt, then hold up drawings
-    if (isSimpleMode && currentRound.revealedCount === 0) {
-      if (!showingHostPrompt && !showingHoldUpMoment) {
-        setShowingHostPrompt(true);
-        return;
-      }
-      if (showingHostPrompt && !showingHoldUpMoment) {
-        setShowingHostPrompt(false);
+    // Show host screenshare prompt before any reveals (first time only)
+    if (currentRound.revealedCount === 0 && !showingHostPrompt && !showingHoldUpMoment && !showingDramaticReveal && !showingBatchReveal) {
+      setShowingHostPrompt(true);
+      return;
+    }
+
+    // After host prompt, transition to the appropriate reveal
+    if (showingHostPrompt) {
+      setShowingHostPrompt(false);
+
+      // Simple mode: Show "hold up drawings" screen
+      if (isSimpleMode) {
         setShowingHoldUpMoment(true);
         return;
       }
+
+      // Canvas mode: Skip to mobile handling or animation reveals below
     }
 
     // On mobile or for non-hosts, skip all animations
@@ -239,7 +245,7 @@ export const RevealView = ({
     } else {
       onRevealNext();
     }
-  }, [currentRound.revealedCount, submissions.length, isMobile, isSpeakerOrHost, isFirstRound, onRevealNext, gameState.config.gameMode, showingHoldUpMoment, showingHostPrompt]);
+  }, [currentRound.revealedCount, submissions.length, isMobile, isSpeakerOrHost, isFirstRound, onRevealNext, gameState.config.gameMode, showingHoldUpMoment, showingHostPrompt, showingDramaticReveal, showingBatchReveal]);
 
   // Handle dramatic reveal completion (round 1)
   const handleDramaticRevealComplete = useCallback(() => {
@@ -345,11 +351,13 @@ export const RevealView = ({
     }));
   };
 
-  // Show host screenshare prompt (simple mode)
+  // Show host screenshare prompt before reveals
   if (showingHostPrompt) {
+    const isSimpleMode = gameState.config.gameMode === 'simple';
     return (
       <div className="container flex flex-col items-center justify-center" style={{ minHeight: '100vh' }}>
         <div className="card text-center" style={{ maxWidth: '500px' }}>
+          <span className="badge badge-accent mb-3">Round {currentRound.roundNumber}</span>
           <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🖥️</div>
           <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>
             Host, share your screen!
@@ -363,7 +371,7 @@ export const RevealView = ({
               className="btn btn-primary btn-large"
               onClick={handleRevealNext}
             >
-              Reveal Original Image
+              {isSimpleMode ? 'Continue to Reveal' : 'Start the Reveal!'}
             </button>
           )}
 

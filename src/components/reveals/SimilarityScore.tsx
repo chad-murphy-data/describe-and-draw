@@ -123,9 +123,28 @@ export const SimilarityScore = ({
     onAnimationComplete?.();
   }, [animate, finalScore, controls, onAnimationComplete, onHighScore, displayScore]);
 
+  // Track if animation has started (to prevent running multiple times)
+  const [animationStarted, setAnimationStarted] = useState(false);
+
   useEffect(() => {
-    runAnimation();
-  }, []);  // Only run once on mount
+    // Only start animation once, and only when we have a real score (or animation is disabled)
+    if (animationStarted) return;
+
+    // If animation is disabled, just show the score
+    if (!animate) {
+      setAnimationStarted(true);
+      setDisplayScore(finalScore);
+      setPhase('done');
+      return;
+    }
+
+    // Wait for a real score before starting the animation
+    if (finalScore > 0) {
+      setAnimationStarted(true);
+      runAnimation();
+    }
+    // If finalScore is still 0, keep waiting
+  }, [finalScore, animate, animationStarted, runAnimation]);
 
   const scoreColor = getScoreColor(displayScore);
 
